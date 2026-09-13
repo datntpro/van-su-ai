@@ -1,9 +1,10 @@
-import { DarkTheme, ThemeProvider, Stack } from 'expo-router';
+import { DarkTheme, ThemeProvider, Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { AppProvider, useApp } from '@/src/context/AppContext';
 import { OnboardingModal } from '@/src/components/OnboardingModal';
 import { colors } from '@/src/theme/colors';
@@ -29,19 +30,41 @@ const navTheme = {
   },
 };
 
-function RootNav() {
-  const { ready, profile } = useApp();
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { ready: authReady, user } = useAuth();
+  const { ready: appReady } = useApp();
+  const segments = useSegments();
+  const router = useRouter();
+
+  const ready = authReady && (user ? appReady : true);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
+  useEffect(() => {
+    if (!authReady) return;
+    const inAuth = segments[0] === '(auth)';
+    if (!user && !inAuth) {
+      router.replace('/(auth)/login');
+    } else if (user && inAuth) {
+      router.replace('/(tabs)');
+    }
+  }, [authReady, user, segments, router]);
+
   if (!ready) return null;
+  return <>{children}</>;
+}
+
+function RootNav() {
+  const { profile } = useApp();
+  const { user } = useAuth();
 
   return (
     <>
       <StatusBar style="light" />
       <Stack>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="chat"
@@ -53,17 +76,21 @@ function RootNav() {
           }}
         />
       </Stack>
-      <OnboardingModal visible={!profile} />
+      {user ? <OnboardingModal visible={!profile} /> : null}
     </>
   );
 }
 
 export default function RootLayout() {
   return (
-    <AppProvider>
-      <ThemeProvider value={navTheme}>
-        <RootNav />
-      </ThemeProvider>
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <ThemeProvider value={navTheme}>
+          <AuthGate>
+            <RootNav />
+          </AuthGate>
+        </ThemeProvider>
+      </AppProvider>
+    </AuthProvider>
   );
 }

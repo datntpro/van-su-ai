@@ -4,6 +4,8 @@ import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { useApp } from '@/src/context/AppContext';
+import { useAuth } from '@/src/context/AuthContext';
+import { SupabaseBanner } from '@/src/components/SupabaseBanner';
 import { FREE_LIMITS } from '@/src/lib/limits';
 import {
   purchasePro,
@@ -31,6 +33,7 @@ const ROWS: { feature: string; free: string; pro: string }[] = [
 
 export default function ProScreen() {
   const { isPro, setIsPro, profile, clearProfile } = useApp();
+  const { signOut, user, isDemoAuth, supabaseConfigured } = useAuth();
 
   const onPurchase = async () => {
     const res = await purchasePro();
@@ -44,6 +47,7 @@ export default function ProScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <SupabaseBanner />
       <Text style={styles.title}>Pro / Cài đặt</Text>
       <Text style={styles.sub}>
         {isPro ? 'Bạn đang dùng Pro (demo local)' : 'Gói Free · nâng cấp để mở khoá'}
@@ -122,6 +126,35 @@ export default function ProScreen() {
         ) : (
           <Text style={styles.profileLine}>Chưa có hồ sơ</Text>
         )}
+      </Card>
+
+
+      <Card style={{ marginTop: 14 }}>
+        <Text style={styles.matrixTitle}>Tài khoản</Text>
+        <Text style={styles.profileLine}>
+          {user?.email ?? '—'}
+          {isDemoAuth ? ' · demo local' : ''}
+        </Text>
+        <Text style={styles.switchHint}>
+          {supabaseConfigured
+            ? 'Hồ sơ ngày sinh đồng bộ Supabase; giới hạn Free vẫn lưu trên máy.'
+            : 'Chế độ demo: chưa có Supabase URL/anon key — session chỉ trên thiết bị.'}
+        </Text>
+        <View style={{ height: 10 }} />
+        <PrimaryButton
+          title="Đăng xuất"
+          variant="ghost"
+          onPress={() =>
+            Alert.alert('Đăng xuất?', 'Bạn sẽ cần đăng nhập lại để tiếp tục.', [
+              { text: 'Huỷ', style: 'cancel' },
+              {
+                text: 'Đăng xuất',
+                style: 'destructive',
+                onPress: () => signOut(),
+              },
+            ])
+          }
+        />
       </Card>
 
       <View style={{ height: 14 }} />

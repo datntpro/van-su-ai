@@ -7,7 +7,13 @@ import React, {
   useState,
 } from 'react';
 
+import { useAuth } from '@/src/context/AuthContext';
 import type { UserProfile } from '@/src/lib/profile';
+import {
+  loadAndMergeProfile,
+  saveIsProToCloud,
+  saveProfileToCloud,
+} from '@/src/lib/profileSync';
 import { getJson, setJson, getString, setString } from '@/src/lib/storage';
 
 type AppContextValue = {
@@ -25,31 +31,90 @@ const PROFILE_KEY = 'user:profile';
 const PRO_KEY = 'user:isPro';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { ready: authReady, user, isDemoAuth } = useAuth();
   const [ready, setReady] = useState(false);
   const [profile, setProfileState] = useState<UserProfile | null>(null);
   const [isPro, setIsProState] = useState(false);
 
+  // Load local + merge cloud when auth user changes
   useEffect(() => {
+    if (!authReady) return;
+
+    let cancelled = false;
+
     (async () => {
-      const [p, pro] = await Promise.all([
+      setReady(false);
+      const [localProfile, pro] = await Promise.all([
         getJson<UserProfile | null>(PROFILE_KEY, null),
         getString(PRO_KEY),
       ]);
-      setProfileState(p);
-      setIsProState(pro === '1');
+      const localIsPro = pro === '1';
+
+      if (!user) {
+        if (!cancelled) {
+          setProfileState(localProfile);
+          setIsProState(localIsPro);
+          setReady(true);
+        }
+        return;
+      }
+
+      // Demo auth: keep AsyncStorage only
+      if (isDemoAuth || user.id.startsWith('demo-')) {
+        if (!cancelled) {
+          setProfileState(localProfile);
+          setIsProState(localIsPro);
+          setReady(true);
+        }
+        return;
+      }
+
+      const merged = await loadAndMergeProfile(user.id, localProfile);
+      if (cancelled) return;
+
+      if (merged.profile) {
+        await setJson(PROFILE_KEY, merged.profile);
+        setProfileState(merged.profile);
+      } else {
+        setProfileState(localProfile);
+      }
+
+      // Prefer cloud is_pro when we got a boolean; else local
+      if (typeof merged.isPro === 'boolean') {
+        await setString(PRO_KEY, merged.isPro ? '1' : '0');
+        setIsProState(merged.isPro);
+      } else {
+        setIsProState(localIsPro);
+      }
       setReady(true);
     })();
-  }, []);
 
-  const setProfile = useCallback(async (p: UserProfile) => {
-    await setJson(PROFILE_KEY, p);
-    setProfileState(p);
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user?.id, isDemoAuth]);
 
-  const setIsPro = useCallback(async (v: boolean) => {
-    await setString(PRO_KEY, v ? '1' : '0');
-    setIsProState(v);
-  }, []);
+  const setProfile = useCallback(
+    async (p: UserProfile) => {
+      await setJson(PROFILE_KEY, p);
+      setProfileState(p);
+      if (user && !isDemoAuth && !user.id.startsWith('demo-')) {
+        await saveProfileToCloud(user.id, p);
+      }
+    },
+    [user, isDemoAuth],
+  );
+
+  const setIsPro = useCallback(
+    async (v: boolean) => {
+      await setString(PRO_KEY, v ? '1' : '0');
+      setIsProState(v);
+      if (user && !isDemoAuth && !user.id.startsWith('demo-')) {
+        await saveIsProToCloud(user.id, v);
+      }
+    },
+    [user, isDemoAuth],
+  );
 
   const clearProfile = useCallback(async () => {
     await setJson(PROFILE_KEY, null);
@@ -57,8 +122,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ready, profile, isPro, setProfile, setIsPro, clearProfile }),
-    [ready, profile, isPro, setProfile, setIsPro, clearProfile],
+    () => ({
+      ready: authReady && ready,
+      profile,
+      isPro,
+      setProfile,
+      setIsPro,
+      clearProfile,
+    }),
+    [authReady, ready, profile, isPro, setProfile, setIsPro, clearProfile],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
