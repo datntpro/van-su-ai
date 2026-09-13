@@ -37,21 +37,26 @@ npx expo start
 **Entitlement:** `effectivePro = is_pro (paid) OR (trial_consumed && now < trial_ends_at)`.  
 `profiles.is_pro` = **paid only** — không set true vì trial.
 
-**Trial Option A:** sau đăng ký **cloud** + hoàn tất onboarding ngày sinh, một lần / account (`trial_consumed`). Demo/offline auth **không** cấp trial cloud.
+**Access flow (locked):** tạo tài khoản **Free** → onboarding ngày sinh → **sau đó** RPC `start_trial_if_eligible` cấp Trial Pro 7 ngày. **Không** cấp trial trước đăng ký. Demo/offline **không** cấp trial cloud.
+
+**RLS / entitlement:** client (anon JWT) **không** được `UPDATE` `is_pro`, `trial_started_at`, `trial_ends_at`, `trial_consumed`, `entitlement_source`. Chỉ RPC security definer / `service_role`. Nếu RPC fail → hiện lỗi, **không** fallback ghi trial từ app.
 
 Chi tiết BA: `docs/BA-FEATURE-GAP.md` · Checklist pilot: `docs/PILOT-CHECKLIST.md`.
 
 ## Auth (Supabase)
 
 - Đăng nhập / Đăng ký email; messaging xác nhận email; `refreshSession`
-- Hồ sơ + trial fields trên `profiles` (RLS own-row)
+- Hồ sơ + trial fields trên `profiles` (RLS own-row; entitlement columns **read-only** cho client)
+- `user_traits` — hồ sơ AI cá nhân (giới tính, hôn nhân, nghề, quan tâm, JSONB questionnaire)
+- `horoscope_chats` — hội thoại tử vi (own-only)
 - Free usage counters: AsyncStorage (local)
 - Demo mode nếu thiếu env: banner vàng; **không** hứa trial 7 ngày production
 
 ## Tabs & AI
 
 - **Hôm nay** — lịch + Trial banner / soft nudge D5–6 + ads nếu Free
-- **Tử vi / Chat** — pluggable AI: nếu `EXPO_PUBLIC_AI_API_URL` + `EXPO_PUBLIC_AI_API_KEY` → HTTP; else mock + badge **MOCK AI** trong `__DEV__`
+- **Tử vi** — hội thoại nhiều lượt: AI hỏi giờ sinh / giới tính / hôn nhân / việc / quan tâm / mục tiêu; lưu `user_traits`; rồi luận giải cá nhân. Bỏ qua = gen ngay. Persist `horoscope_chats`.
+- **Chat** — pluggable AI: nếu `EXPO_PUBLIC_AI_API_URL` + `EXPO_PUBLIC_AI_API_KEY` → HTTP; else mock + badge **MOCK AI** trong `__DEV__`
 - **Tướng số** — ảnh → mock analysis (P1: vision API)
 - **Pro** — matrix Free/Trial/Pro, status trial, IAP stub, legal links
 - Legal: `app/legal/privacy.tsx`, `app/legal/terms.tsx`
@@ -64,6 +69,7 @@ Worker stub (optional): `worker/` — proxy Workers AI / OpenAI, contract JSON d
 2. Chạy migrations:
    - `20260913000000_profiles.sql`
    - `20260913120000_trial_entitlement.sql` (trial columns + RPC `start_trial_if_eligible`)
+   - `20260913140000_rls_entitlement_traits_chats.sql` (lock entitlement columns + `user_traits` + `horoscope_chats`)
 3. Chỉ **anon** key trong Expo — **never service_role**.
 4. Store build: `EXPO_PUBLIC_STORE_BUILD=1` + bắt buộc Supabase env (tắt demo).
 
@@ -93,10 +99,12 @@ app/legal/             # Privacy + Terms (VI)
 app/chat.tsx           # Chat AI modal
 src/lib/entitlement.ts # effectivePro / trial math
 src/lib/ai.ts          # Pluggable AI client
-src/lib/profileSync.ts # profiles + startTrialOnCloud
+src/lib/profileSync.ts # profiles + RPC-only trial + traits
+src/lib/traits.ts      # user_traits helpers
+src/lib/horoscopeConversation.ts
 src/services/revenuecat.ts  # configure + syncPaidProFromCustomerInfo hooks
 worker/                # Optional CF Worker AI proxy
-supabase/migrations/   # profiles + trial
+supabase/migrations/   # profiles + trial + RLS lock + traits/chats
 docs/PILOT-CHECKLIST.md
 ```
 

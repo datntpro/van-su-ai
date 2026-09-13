@@ -6,6 +6,11 @@
 const DISCLAIMER =
   'Chỉ mang tính giải trí, không phải lời khuyên chuyên môn';
 
+const INTAKE_SYSTEM = `Bạn là Van Su AI — trợ lý tử vi / lịch vạn sự tiếng Việt, chỉ mang tính giải trí.
+Hỏi lần lượt thông tin còn thiếu (giờ sinh, giới tính, hôn nhân, công việc, điều quan tâm, mục tiêu năm nay).
+Một câu hỏi mỗi lượt. Khi đủ ngữ cảnh hoặc user bỏ qua: luận giải cá nhân hóa, không generic.
+Không khẳng định tuyệt đối.`;
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
@@ -28,7 +33,9 @@ export default {
       return json({ error: 'invalid json' }, 400);
     }
 
-    const type = body.type === 'chat' ? 'chat' : 'horoscope';
+    const type = ['chat', 'horoscope_intake'].includes(body.type)
+      ? body.type
+      : 'horoscope';
     const prompt = buildPrompt(type, body);
 
     let text = '';
@@ -36,6 +43,22 @@ export default {
 
     if (env.OPENAI_API_KEY) {
       try {
+        const messages = [
+          {
+            role: 'system',
+            content: body.systemPrompt || (type === 'horoscope_intake' ? INTAKE_SYSTEM :
+              'Bạn là Van Su AI — trợ lý tử vi/lịch vạn sự tiếng Việt, chỉ giải trí, ngắn gọn, không khẳng định tuyệt đối.'),
+          },
+        ];
+        if (Array.isArray(body.history)) {
+          for (const h of body.history.slice(-12)) {
+            if (h && (h.role === 'user' || h.role === 'assistant') && h.content) {
+              messages.push({ role: h.role, content: String(h.content) });
+            }
+          }
+        }
+        messages.push({ role: 'user', content: prompt });
+
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -44,14 +67,7 @@ export default {
           },
           body: JSON.stringify({
             model: env.OPENAI_MODEL || 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'Bạn là Van Su AI — trợ lý tử vi/lịch vạn sự tiếng Việt, chỉ giải trí, ngắn gọn, không khẳng định tuyệt đối.',
-              },
-              { role: 'user', content: prompt },
-            ],
+            messages,
             temperature: 0.8,
           }),
         });
@@ -65,13 +81,15 @@ export default {
       }
     }
 
-    // Optional: Workers AI binding `env.AI.run(...)` when configured in wrangler.toml
-
     if (!text) {
       text = [
-        type === 'chat'
-          ? `Van Su AI (stub): về “${String(body.message || '').slice(0, 80)}”, hãy giữ tâm thế trung dung hôm nay.`
-          : 'Van Su AI (stub): ngày mang năng lượng ổn định — ưu tiên việc nhỏ hoàn thành sớm.',
+        type === 'horoscope_intake'
+          ? (body.skipIntake
+            ? 'Đã đủ để luận giải. Mình sẽ soạn tử vi cá nhân hóa dựa trên hồ sơ bạn đã cung cấp.'
+            : `Mình cần thêm vài chi tiết. ${body.message ? 'Cảm ơn bạn đã chia sẻ. ' : ''}Bạn nhớ giờ sinh, giới tính, công việc hoặc điều đang quan tâm không?`)
+          : type === 'chat'
+            ? `Van Su AI (stub): về “${String(body.message || '').slice(0, 80)}”, hãy giữ tâm thế trung dung hôm nay.`
+            : 'Van Su AI (stub): ngày mang năng lượng ổn định — ưu tiên việc nhỏ hoàn thành sớm.',
         '',
         `— ${DISCLAIMER} —`,
       ].join('\n');
@@ -80,16 +98,34 @@ export default {
       text = `${text}\n\n— ${DISCLAIMER} —`;
     }
 
-    return json({ text, model });
+    const readyForReading = Boolean(body.skipIntake) || type === 'horoscope';
+    return json({ text, model, readyForReading });
   },
 };
 
 function buildPrompt(type, body) {
   const p = body.profile || {};
-  if (type === 'chat') {
-    return `Hồ sơ: sinh ${p.birthDate || '?'}, giờ ${p.birthTime || 'không rõ'}. Câu hỏi: ${body.message || ''}`;
+  const tr = body.traits || {};
+  const traitLine = [
+    tr.gender && `giới tính ${tr.gender}`,
+    tr.relationshipStatus && `tình cảm ${tr.relationshipStatus}`,
+    tr.career && `nghề ${tr.career}`,
+    Array.isArray(tr.concerns) && tr.concerns.length && `quan tâm ${tr.concerns.join(', ')}`,
+    tr.locationCurrent && `đang ở ${tr.locationCurrent}`,
+  ].filter(Boolean).join('; ');
+
+  if (type === 'horoscope_intake') {
+    return [
+      `Hồ sơ sinh: ${p.birthDate || '?'}, giờ ${p.birthTime || 'chưa có'}.`,
+      traitLine ? `Đã biết: ${traitLine}.` : 'Chưa có traits.',
+      body.skipIntake ? 'User bỏ qua hỏi thêm — hãy luận giải cá nhân hóa ngay.' : '',
+      body.message ? `User vừa nói: ${body.message}` : 'Hãy hỏi thông tin còn thiếu (một câu).',
+    ].filter(Boolean).join(' ');
   }
-  return `Viết tử vi ngày (tiếng Việt, giải trí) cho người sinh ${p.birthDate || '?'}, ngày ${body.date || 'hôm nay'}.`;
+  if (type === 'chat') {
+    return `Hồ sơ: sinh ${p.birthDate || '?'}, giờ ${p.birthTime || 'không rõ'}. ${traitLine}. Câu hỏi: ${body.message || ''}`;
+  }
+  return `Viết tử vi ngày (tiếng Việt, giải trí, cá nhân hóa) cho người sinh ${p.birthDate || '?'}, ngày ${body.date || 'hôm nay'}. ${traitLine}`;
 }
 
 function cors() {

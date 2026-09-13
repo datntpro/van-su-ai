@@ -19,7 +19,7 @@ export type ProfileRow = {
   birth_time: string | null;
   birth_place: string | null;
   display_name: string | null;
-  /** Paid Pro only — never true solely because of trial. */
+  /** Paid Pro only — never true solely because of trial. Client cannot UPDATE. */
   is_pro: boolean;
   trial_started_at: string | null;
   trial_ends_at: string | null;
@@ -27,6 +27,26 @@ export type ProfileRow = {
   entitlement_source: EntitlementSource;
   created_at: string;
   updated_at: string;
+};
+
+export type UserTraitsRow = {
+  user_id: string;
+  gender: string | null;
+  relationship_status: string | null;
+  career: string | null;
+  concerns: string[] | null;
+  location_current: string | null;
+  additional_notes: string | null;
+  questionnaire: Record<string, unknown> | null;
+  updated_at: string;
+};
+
+export type HoroscopeChatRow = {
+  id: string;
+  user_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: string;
 };
 
 let client: SupabaseClient | null = null;

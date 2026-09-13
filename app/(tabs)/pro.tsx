@@ -46,6 +46,7 @@ export default function ProScreen() {
   const {
     setIsPro,
     profile,
+    traits,
     clearProfile,
     entitlement,
     applyPaidFromRevenueCat,
@@ -167,6 +168,15 @@ export default function ProScreen() {
             {profile.birthPlace ? (
               <Text style={styles.profileLine}>Nơi sinh: {profile.birthPlace}</Text>
             ) : null}
+            {traits.gender ? (
+              <Text style={styles.profileLine}>Giới tính: {traits.gender}</Text>
+            ) : null}
+            {traits.career ? (
+              <Text style={styles.profileLine}>Công việc: {traits.career}</Text>
+            ) : null}
+            {traits.relationshipStatus ? (
+              <Text style={styles.profileLine}>Tình cảm: {traits.relationshipStatus}</Text>
+            ) : null}
             <View style={{ height: 10 }} />
             <PrimaryButton
               title="Xóa hồ sơ / onboarding lại"
@@ -196,7 +206,7 @@ export default function ProScreen() {
         </Text>
         <Text style={styles.switchHint}>
           {supabaseConfigured
-            ? 'Hồ sơ + trial đồng bộ Supabase; giới hạn Free vẫn lưu trên máy.'
+            ? 'Hồ sơ + traits đồng bộ Supabase. Trial chỉ qua RPC (client không ghi is_pro / trial_*). Free limits vẫn local.'
             : 'Chế độ demo: chưa có Supabase — không cấp trial Pro 7 ngày như production.'}
         </Text>
         <View style={{ height: 10 }} />

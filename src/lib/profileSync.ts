@@ -1,6 +1,12 @@
 import type { EntitlementSource } from '@/src/lib/entitlement';
 import type { UserProfile } from '@/src/lib/profile';
-import { getSupabase, type ProfileRow } from '@/src/lib/supabase';
+import {
+  EMPTY_TRAITS,
+  type TraitsQuestionnaire,
+  type UserTraits,
+} from '@/src/lib/traits';
+import { getSupabase, type ProfileRow, type UserTraitsRow } from '@/src/lib/supabase';
+import { mapTrialRpcError } from '@/src/lib/trialError';
 
 export type CloudEntitlement = {
   isProPaid: boolean;
@@ -8,6 +14,11 @@ export type CloudEntitlement = {
   trialStartedAt: string | null;
   trialEndsAt: string | null;
   entitlementSource: EntitlementSource;
+};
+
+export type TrialStartResult = {
+  entitlement: CloudEntitlement | null;
+  error?: string;
 };
 
 function rowToProfile(row: ProfileRow): UserProfile | null {
@@ -40,9 +51,36 @@ function rowToEntitlement(row: ProfileRow): CloudEntitlement {
   };
 }
 
+export function rowToTraits(row: UserTraitsRow): UserTraits {
+  const q = (row.questionnaire ?? {}) as TraitsQuestionnaire;
+  return {
+    gender: row.gender ?? undefined,
+    relationshipStatus: row.relationship_status ?? undefined,
+    career: row.career ?? undefined,
+    concerns: Array.isArray(row.concerns) ? row.concerns : [],
+    locationCurrent: row.location_current ?? undefined,
+    additionalNotes: row.additional_notes ?? undefined,
+    questionnaire: q,
+    updatedAt: row.updated_at,
+  };
+}
+
+function traitsToRow(userId: string, traits: UserTraits) {
+  return {
+    user_id: userId,
+    gender: traits.gender ?? null,
+    relationship_status: traits.relationshipStatus ?? null,
+    career: traits.career ?? null,
+    concerns: traits.concerns ?? [],
+    location_current: traits.locationCurrent ?? null,
+    additional_notes: traits.additionalNotes ?? null,
+    questionnaire: traits.questionnaire ?? {},
+  };
+}
+
 /**
- * Load cloud profile; if empty and local has data, upsert local → cloud.
- * Prefer cloud birth_date when present; otherwise keep/merge local.
+ * Load cloud profile; if empty and local has data, upsert local → cloud
+ * (allowed columns only — never entitlement fields).
  */
 export async function loadAndMergeProfile(
   userId: string,
@@ -109,13 +147,13 @@ export async function loadAndMergeProfile(
   return { profile: null, entitlement: rowToEntitlement(row) };
 }
 
-/** Persist onboarding / profile edits to Supabase when logged in with real client. */
+/** Persist onboarding / profile edits — allowed columns only. */
 export async function saveProfileToCloud(
   userId: string,
   profile: UserProfile,
-): Promise<void> {
+): Promise<{ error?: string }> {
   const sb = getSupabase();
-  if (!sb) return;
+  if (!sb) return {};
 
   const { error } = await sb.from('profiles').upsert(
     {
@@ -126,88 +164,94 @@ export async function saveProfileToCloud(
   );
   if (error) {
     console.warn('[profileSync] save failed', error.message);
+    return { error: error.message };
   }
+  return {};
+}
+
+export async function loadTraitsFromCloud(
+  userId: string,
+  local: UserTraits | null,
+): Promise<UserTraits> {
+  const sb = getSupabase();
+  if (!sb) return local ?? EMPTY_TRAITS;
+
+  const { data, error } = await sb
+    .from('user_traits')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[profileSync] traits load failed', error.message);
+    return local ?? EMPTY_TRAITS;
+  }
+  if (!data) {
+    if (local && (local.gender || local.career || local.concerns.length)) {
+      await saveTraitsToCloud(userId, local);
+      return local;
+    }
+    return local ?? EMPTY_TRAITS;
+  }
+  // Cloud is source of truth for signed-in users
+  return rowToTraits(data as UserTraitsRow);
+}
+
+export async function saveTraitsToCloud(
+  userId: string,
+  traits: UserTraits,
+): Promise<{ error?: string }> {
+  const sb = getSupabase();
+  if (!sb) return {};
+  const { error } = await sb
+    .from('user_traits')
+    .upsert(traitsToRow(userId, traits), { onConflict: 'user_id' });
+  if (error) {
+    console.warn('[profileSync] traits save failed', error.message);
+    return { error: error.message };
+  }
+  return {};
 }
 
 /**
- * Start 7-day trial once (Option A) via RPC when possible.
- * No-op for demo/offline (caller must not invoke).
- * Returns updated entitlement or null on failure.
+ * Start 7-day trial once via RPC only.
+ * NO client UPDATE of trial_* / is_pro — if RPC fails, return error.
  */
-export async function startTrialOnCloud(userId: string): Promise<CloudEntitlement | null> {
+export async function startTrialOnCloud(_userId: string): Promise<TrialStartResult> {
   const sb = getSupabase();
-  if (!sb) return null;
+  if (!sb) {
+    return { entitlement: null, error: 'Chưa cấu hình Supabase — không thể cấp trial cloud.' };
+  }
 
-  // Prefer RPC (server now + anti re-trial)
   const { data: rpcData, error: rpcErr } = await sb.rpc('start_trial_if_eligible');
   if (!rpcErr && rpcData) {
     const row = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as ProfileRow;
-    return rowToEntitlement(row);
-  }
-  if (rpcErr) {
-    console.warn('[profileSync] start_trial RPC', rpcErr.message);
+    return { entitlement: rowToEntitlement(row) };
   }
 
-  // Fallback: client update only if not consumed (weaker clock guarantee)
-  const { data: current, error: loadErr } = await sb
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
-  if (loadErr || !current) {
-    console.warn('[profileSync] trial load failed', loadErr?.message);
-    return null;
-  }
-  const row = current as ProfileRow;
-  if (row.trial_consumed || row.is_pro || !row.birth_date) {
-    return rowToEntitlement(row);
-  }
-
-  const started = new Date();
-  const ends = new Date(started.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const { data: updated, error: upErr } = await sb
-    .from('profiles')
-    .update({
-      trial_started_at: started.toISOString(),
-      trial_ends_at: ends.toISOString(),
-      trial_consumed: true,
-      entitlement_source: row.entitlement_source === 'revenuecat' ? 'revenuecat' : 'trial',
-    })
-    .eq('id', userId)
-    .eq('trial_consumed', false)
-    .select('*')
-    .maybeSingle();
-
-  if (upErr) {
-    console.warn('[profileSync] trial update failed', upErr.message);
-    return rowToEntitlement(row);
-  }
-  if (!updated) return rowToEntitlement(row);
-  return rowToEntitlement(updated as ProfileRow);
+  console.warn('[profileSync] start_trial RPC', rpcErr?.message);
+  return {
+    entitlement: null,
+    error: mapTrialRpcError(rpcErr?.message),
+  };
 }
 
 /**
- * Sync paid Pro from RevenueCat / server — store builds must only flip is_pro this way
- * (or explicit server field), never from random UI.
+ * Paid Pro must be written by service_role / apply_paid_pro webhook — never from Expo.
  */
 export async function syncPaidProToCloud(
-  userId: string,
-  isProPaid: boolean,
-  source: EntitlementSource = 'revenuecat',
+  _userId: string,
+  _isProPaid: boolean,
+  _source: EntitlementSource = 'revenuecat',
 ): Promise<void> {
-  const sb = getSupabase();
-  if (!sb) return;
-  const { error } = await sb
-    .from('profiles')
-    .update({
-      is_pro: isProPaid,
-      entitlement_source: isProPaid ? source : 'none',
-    })
-    .eq('id', userId);
-  if (error) console.warn('[profileSync] paid pro sync failed', error.message);
+  console.warn(
+    '[profileSync] syncPaidProToCloud skipped — entitlement columns are server/RPC only',
+  );
 }
 
-/** @deprecated Use syncPaidProToCloud — kept for __DEV__ demo toggle only. */
-export async function saveIsProToCloud(userId: string, isPro: boolean): Promise<void> {
-  await syncPaidProToCloud(userId, isPro, isPro ? 'promo' : 'none');
+/** @deprecated Demo toggle is local-only; does not write is_pro. */
+export async function saveIsProToCloud(_userId: string, _isPro: boolean): Promise<void> {
+  console.warn('[profileSync] saveIsProToCloud skipped — clients cannot UPDATE is_pro');
 }
+
+export { mapTrialRpcError } from '@/src/lib/trialError';

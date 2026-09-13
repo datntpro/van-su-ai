@@ -11,7 +11,6 @@ import React, {
 import { useAuth } from '@/src/context/AuthContext';
 import {
   computeEntitlement,
-  EMPTY_ENTITLEMENT,
   type EffectiveEntitlement,
   type EntitlementSource,
 } from '@/src/lib/entitlement';
@@ -19,10 +18,11 @@ import { canShowDemoProToggle } from '@/src/lib/flags';
 import type { UserProfile } from '@/src/lib/profile';
 import {
   loadAndMergeProfile,
+  loadTraitsFromCloud,
   saveIsProToCloud,
   saveProfileToCloud,
+  saveTraitsToCloud,
   startTrialOnCloud,
-  syncPaidProToCloud,
   type CloudEntitlement,
 } from '@/src/lib/profileSync';
 import { getJson, setJson, getString, setString } from '@/src/lib/storage';
@@ -30,10 +30,12 @@ import {
   configurePurchases,
   syncPaidProFromCustomerInfo,
 } from '@/src/services/revenuecat';
+import { EMPTY_TRAITS, mergeTraits, type UserTraits } from '@/src/lib/traits';
 
 type AppContextValue = {
   ready: boolean;
   profile: UserProfile | null;
+  traits: UserTraits;
   /** @deprecated Prefer effectivePro — kept as alias for paid|trial. */
   isPro: boolean;
   /** Paid-only flag (profiles.is_pro). */
@@ -44,16 +46,21 @@ type AppContextValue = {
   /** True once after Option A trial start this session. */
   trialJustStarted: boolean;
   clearTrialJustStarted: () => void;
+  /** RPC start_trial failed — do not write trial fields from client. */
+  trialStartError: string | null;
+  clearTrialStartError: () => void;
+  retryStartTrial: () => Promise<void>;
   /** Show expired modal once after trial ends. */
   showTrialExpiredModal: boolean;
   dismissTrialExpiredModal: () => void;
-  setProfile: (p: UserProfile) => Promise<void>;
+  setProfile: (p: UserProfile) => Promise<{ trialError?: string }>;
+  patchTraits: (partial: Partial<UserTraits>) => Promise<UserTraits>;
   /**
-   * Demo/dev only — flips local + optional cloud is_pro.
+   * Demo/dev only — flips local is_pro. Does NOT write entitlement columns.
    * No-op on store builds (canShowDemoProToggle === false).
    */
   setIsPro: (v: boolean) => Promise<void>;
-  /** Apply paid Pro from RevenueCat CustomerInfo. */
+  /** Apply paid Pro locally from RevenueCat. Cloud write is service_role only. */
   applyPaidFromRevenueCat: (paid: boolean) => Promise<void>;
   clearProfile: () => Promise<void>;
   refreshEntitlement: () => Promise<void>;
@@ -62,6 +69,7 @@ type AppContextValue = {
 const AppContext = createContext<AppContextValue | null>(null);
 
 const PROFILE_KEY = 'user:profile';
+const TRAITS_KEY = 'user:traits';
 const PRO_KEY = 'user:isPro';
 const TRIAL_EXPIRED_SEEN_KEY = 'trial:expiredSeenFor';
 
@@ -88,6 +96,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { ready: authReady, user, isDemoAuth } = useAuth();
   const [ready, setReady] = useState(false);
   const [profile, setProfileState] = useState<UserProfile | null>(null);
+  const [traits, setTraitsState] = useState<UserTraits>(EMPTY_TRAITS);
   const [isProPaid, setIsProPaid] = useState(false);
   const [trialConsumed, setTrialConsumed] = useState(false);
   const [trialStartedAt, setTrialStartedAt] = useState<string | null>(null);
@@ -95,6 +104,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [entitlementSource, setEntitlementSource] =
     useState<EntitlementSource>('none');
   const [trialJustStarted, setTrialJustStarted] = useState(false);
+  const [trialStartError, setTrialStartError] = useState<string | null>(null);
   const [showTrialExpiredModal, setShowTrialExpiredModal] = useState(false);
   const [tick, setTick] = useState(0);
   const startingTrial = useRef(false);
@@ -123,13 +133,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [isProPaid, trialConsumed, trialStartedAt, trialEndsAt, entitlementSource, tick],
   );
 
-  // Refresh countdown hourly
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Detect trial expiry → modal once
   useEffect(() => {
     if (!ready || !user || isDemoAuth) return;
     const wasActive = prevTrialActive.current;
@@ -155,7 +163,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trialEndsAt,
   ]);
 
-  // Also check on load if already expired and never shown
   useEffect(() => {
     if (!ready || !user || isDemoAuth || !entitlement.trialExpired) return;
     (async () => {
@@ -169,21 +176,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [ready, user, isDemoAuth, entitlement.trialExpired, trialEndsAt]);
 
   const tryStartTrial = useCallback(
-    async (userId: string, hasBirth: boolean) => {
+    async (userId: string, hasBirth: boolean): Promise<string | undefined> => {
       if (!hasBirth || startingTrial.current) return;
       if (isDemoAuth || userId.startsWith('demo-')) return;
       startingTrial.current = true;
       try {
         const beforeConsumed = trialConsumed;
-        const ent = await startTrialOnCloud(userId);
-        if (ent) {
-          applyEntitlement(ent, ent.isProPaid);
-          const active = computeEntitlement(ent).trialActive;
-          // Banner once when trial newly granted this session
-          if (!beforeConsumed && ent.trialConsumed && active) {
+        const result = await startTrialOnCloud(userId);
+        if (result.entitlement) {
+          setTrialStartError(null);
+          applyEntitlement(result.entitlement, result.entitlement.isProPaid);
+          const active = computeEntitlement(result.entitlement).trialActive;
+          if (!beforeConsumed && result.entitlement.trialConsumed && active) {
             setTrialJustStarted(true);
           }
+          return undefined;
         }
+        if (result.error) {
+          setTrialStartError(result.error);
+          return result.error;
+        }
+        return undefined;
       } finally {
         startingTrial.current = false;
       }
@@ -191,7 +204,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [isDemoAuth, trialConsumed, applyEntitlement],
   );
 
-  // Load local + merge cloud when auth user changes
   useEffect(() => {
     if (!authReady) return;
 
@@ -199,25 +211,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       setReady(false);
-      const [localProfile, pro] = await Promise.all([
+      const [localProfile, pro, localTraits] = await Promise.all([
         getJson<UserProfile | null>(PROFILE_KEY, null),
         getString(PRO_KEY),
+        getJson<UserTraits | null>(TRAITS_KEY, null),
       ]);
       const localIsPro = pro === '1';
+      const localT = localTraits ?? EMPTY_TRAITS;
 
       if (!user) {
         if (!cancelled) {
           setProfileState(localProfile);
+          setTraitsState(localT);
           applyEntitlement(null, canShowDemoProToggle() ? localIsPro : false);
           setReady(true);
         }
         return;
       }
 
-      // Demo auth: keep AsyncStorage only — NO cloud trial
       if (isDemoAuth || user.id.startsWith('demo-')) {
         if (!cancelled) {
           setProfileState(localProfile);
+          setTraitsState(localT);
           applyEntitlement(null, canShowDemoProToggle() ? localIsPro : false);
           setReady(true);
         }
@@ -227,6 +242,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await configurePurchases(user.id);
 
       const merged = await loadAndMergeProfile(user.id, localProfile);
+      const cloudTraits = await loadTraitsFromCloud(user.id, localT);
       if (cancelled) return;
 
       if (merged.profile) {
@@ -236,8 +252,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setProfileState(localProfile);
       }
 
+      await setJson(TRAITS_KEY, cloudTraits);
+      setTraitsState(cloudTraits);
+
       let paid = merged.entitlement?.isProPaid ?? false;
-      // Store / cloud: prefer server is_pro; local demo flag only in __DEV__
       if (canShowDemoProToggle() && typeof merged.entitlement?.isProPaid !== 'boolean') {
         paid = localIsPro;
       }
@@ -250,18 +268,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       await setString(PRO_KEY, paid ? '1' : '0');
 
-      // RC sync hook (stub returns null until SDK wired)
       const rcPaid = await syncPaidProFromCustomerInfo();
       if (typeof rcPaid === 'boolean' && !cancelled) {
         setIsProPaid(rcPaid);
         await setString(PRO_KEY, rcPaid ? '1' : '0');
         if (rcPaid) {
-          await syncPaidProToCloud(user.id, true, 'revenuecat');
           setEntitlementSource('revenuecat');
         }
       }
 
-      // Option A: start trial after cloud signup + birth date complete
+      // Option A: Free signup → onboarding birth_date → RPC trial. Never before registration.
       const hasBirth = Boolean(merged.profile?.birthDate || localProfile?.birthDate);
       if (hasBirth && merged.entitlement && !merged.entitlement.trialConsumed) {
         await tryStartTrial(user.id, true);
@@ -281,13 +297,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setProfileState(p);
       if (user && !isDemoAuth && !user.id.startsWith('demo-')) {
         await saveProfileToCloud(user.id, p);
-        // Option A: start trial once after onboarding birth date
         if (!trialConsumed) {
-          await tryStartTrial(user.id, true);
+          const err = await tryStartTrial(user.id, true);
+          return err ? { trialError: err } : {};
         }
       }
+      return {};
     },
     [user, isDemoAuth, trialConsumed, tryStartTrial],
+  );
+
+  const patchTraits = useCallback(
+    async (partial: Partial<UserTraits>) => {
+      const next = mergeTraits(traits, partial);
+      setTraitsState(next);
+      await setJson(TRAITS_KEY, next);
+      if (user && !isDemoAuth && !user.id.startsWith('demo-')) {
+        await saveTraitsToCloud(user.id, next);
+      }
+      return next;
+    },
+    [traits, user, isDemoAuth],
   );
 
   const setIsPro = useCallback(
@@ -299,6 +329,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await setString(PRO_KEY, v ? '1' : '0');
       setIsProPaid(v);
       setEntitlementSource(v ? 'promo' : 'none');
+      // Local demo only — never UPDATE is_pro from Expo
       if (user && !isDemoAuth && !user.id.startsWith('demo-')) {
         await saveIsProToCloud(user.id, v);
       }
@@ -311,11 +342,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setIsProPaid(paid);
       await setString(PRO_KEY, paid ? '1' : '0');
       if (paid) setEntitlementSource('revenuecat');
-      if (user && !isDemoAuth && !user.id.startsWith('demo-')) {
-        await syncPaidProToCloud(user.id, paid, 'revenuecat');
-      }
+      // Cloud is_pro is written by service_role / apply_paid_pro — not the client.
     },
-    [user, isDemoAuth],
+    [],
   );
 
   const clearProfile = useCallback(async () => {
@@ -331,21 +360,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, isDemoAuth, profile, applyEntitlement]);
 
   const clearTrialJustStarted = useCallback(() => setTrialJustStarted(false), []);
+  const clearTrialStartError = useCallback(() => setTrialStartError(null), []);
   const dismissTrialExpiredModal = useCallback(() => setShowTrialExpiredModal(false), []);
+
+  const retryStartTrial = useCallback(async () => {
+    if (!user || isDemoAuth || user.id.startsWith('demo-')) return;
+    const hasBirth = Boolean(profile?.birthDate);
+    if (!hasBirth) {
+      setTrialStartError('Vui lòng hoàn tất ngày sinh trước khi bắt đầu trial.');
+      return;
+    }
+    await tryStartTrial(user.id, true);
+  }, [user, isDemoAuth, profile?.birthDate, tryStartTrial]);
 
   const value = useMemo(
     () => ({
       ready: authReady && ready,
       profile,
+      traits,
       isPro: entitlement.effectivePro,
       isProPaid,
       effectivePro: entitlement.effectivePro,
       entitlement,
       trialJustStarted,
       clearTrialJustStarted,
+      trialStartError,
+      clearTrialStartError,
+      retryStartTrial,
       showTrialExpiredModal,
       dismissTrialExpiredModal,
       setProfile,
+      patchTraits,
       setIsPro,
       applyPaidFromRevenueCat,
       clearProfile,
@@ -355,13 +400,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       authReady,
       ready,
       profile,
+      traits,
       isProPaid,
       entitlement,
       trialJustStarted,
       clearTrialJustStarted,
+      trialStartError,
+      clearTrialStartError,
+      retryStartTrial,
       showTrialExpiredModal,
       dismissTrialExpiredModal,
       setProfile,
+      patchTraits,
       setIsPro,
       applyPaidFromRevenueCat,
       clearProfile,

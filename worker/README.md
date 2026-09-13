@@ -9,14 +9,18 @@ Minimal Cloudflare Worker (or any HTTP endpoint) that proxies to Workers AI / Op
 ```json
 // Request
 {
-  "type": "horoscope" | "chat",
+  "type": "horoscope" | "chat" | "horoscope_intake",
   "profile": { "birthDate": "YYYY-MM-DD", "birthTime?": "...", "displayName?": "..." },
+  "traits?": { "gender?": "...", "career?": "...", "concerns?": ["..."] },
   "date?": "ISO-8601",
-  "message?": "user chat text"
+  "message?": "user chat text",
+  "history?": [{ "role": "user"|"assistant", "content": "..." }],
+  "systemPrompt?": "optional override",
+  "skipIntake?": false
 }
 
 // Response 200
-{ "text": "Tiếng Việt…", "model?": "string" }
+{ "text": "Tiếng Việt…", "model?": "string", "traits?": {}, "readyForReading?": true, "birthTime?": "HH:mm" }
 ```
 
 Header: `Authorization: Bearer <shared secret>` — same value as app `EXPO_PUBLIC_AI_API_KEY`.
@@ -28,6 +32,8 @@ Header: `Authorization: Bearer <shared secret>` — same value as app `EXPO_PUBL
 | `AI_API_KEY` | Shared bearer the app sends (`EXPO_PUBLIC_AI_API_KEY`) |
 | `OPENAI_API_KEY` | Optional OpenAI |
 | `CF_ACCOUNT_ID` / Workers AI binding | Optional Workers AI |
+
+**Never put Supabase `service_role` in Expo or this worker unless it is a dedicated backend.**
 
 ## Deploy sketch
 

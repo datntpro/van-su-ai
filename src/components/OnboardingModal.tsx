@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -47,8 +48,12 @@ export function OnboardingModal({ visible }: { visible: boolean }) {
       displayName: displayName.trim() || undefined,
       createdAt: new Date().toISOString(),
     };
-    await setProfile(profile);
+    const result = await setProfile(profile);
     setSaving(false);
+    // Free account + birth_date saved first. Trial is RPC-only — never client UPDATE.
+    if (result?.trialError) {
+      Alert.alert('Trial chưa bắt đầu', result.trialError);
+    }
   };
 
   return (

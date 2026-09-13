@@ -2,6 +2,7 @@ import type { UserProfile } from './profile';
 import { zodiacFromBirthDate, yearAnimal } from './profile';
 import { getDayFortune } from './calendar';
 import { callAi, type AiResult } from './ai';
+import type { UserTraits } from './traits';
 import { DISCLAIMER } from '@/src/theme/colors';
 
 export type ChatMessage = {
@@ -44,10 +45,12 @@ function hash(s: string): number {
 export async function chatReply(
   question: string,
   profile: UserProfile,
+  traits?: UserTraits,
 ): Promise<AiResult> {
   const ai = await callAi({
     type: 'chat',
     profile,
+    traits,
     message: question,
   });
   if (ai.text) return ai;
@@ -56,8 +59,12 @@ export async function chatReply(
   const idx = Math.abs(hash(question + profile.birthDate)) % REPLIES.length;
   const fn = REPLIES[idx]!;
   const body = fn(question, profile);
+  const extra =
+    traits?.career || traits?.concerns?.length
+      ? ` (gợi từ hồ sơ: ${[traits.career, ...(traits.concerns ?? [])].filter(Boolean).join(', ')})`
+      : '';
   return {
-    text: `${body}\n\n— ${DISCLAIMER} —`,
+    text: `${body}${extra}\n\n— ${DISCLAIMER} —`,
     source: 'mock',
     showMockBadge: typeof __DEV__ !== 'undefined' && __DEV__,
   };

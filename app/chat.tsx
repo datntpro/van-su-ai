@@ -19,7 +19,7 @@ import { canUseChat, consumeChat, FREE_LIMITS } from '@/src/lib/limits';
 import { colors, DISCLAIMER } from '@/src/theme/colors';
 
 export default function ChatScreen() {
-  const { profile } = useApp();
+  const { profile, traits } = useApp();
   const { effectivePro } = useEffectivePro();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -66,7 +66,7 @@ export default function ChatScreen() {
     setLoading(true);
     try {
       await consumeChat(effectivePro);
-      const reply = await chatReply(q, profile);
+      const reply = await chatReply(q, profile, traits);
       setMessages((m) => [
         ...m,
         {

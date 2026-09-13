@@ -6,6 +6,7 @@ import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { SoftTrialNudge, TrialBanner } from '@/src/components/TrialBanner';
+import { TrialErrorBanner } from '@/src/components/TrialErrorBanner';
 import { useApp, useEffectivePro } from '@/src/context/AppContext';
 import {
   formatLunar,
@@ -37,6 +38,7 @@ export default function HomNayScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <TrialBanner onPressPro={() => router.push('/pro')} />
+      <TrialErrorBanner />
       <SoftTrialNudge onUpgrade={() => router.push('/pro')} />
 
       <Text style={styles.hello}>

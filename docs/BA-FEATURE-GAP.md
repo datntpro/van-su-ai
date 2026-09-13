@@ -271,3 +271,47 @@ Nếu Dat muốn B → bắt buộc Device ID + account merge anti-abuse.
 ---
 
 *File: `/workspace/van-su-ai/docs/BA-FEATURE-GAP.md` · Báo CoS.*
+
+---
+
+## 10. Spot-check BA vs code @ `47e83ad` (2026-09-13)
+
+**Verdict:** Trial Option A + Free/Trial/Pro matrix **aligned** với §3–§5. Unit tests entitlement **6/6 pass**.
+
+| AC / item | Status |
+|-----------|--------|
+| US-T1 Trigger A (signup cloud + birth_date) via `start_trial_if_eligible` | ✅ |
+| `trial_*` + `entitlement_source`; `is_pro` paid-only | ✅ |
+| US-T2 `effectivePro` = paid OR trial active; ads/limits dùng `effectivePro` | ✅ |
+| Countdown + TrialBanner / soft D5–6 | ✅ |
+| US-T3 TrialExpiredModal 1× + copy Free limits | ✅ |
+| US-T4 No trial khi demo auth; no re-trial `trial_consumed`; restore copy không gia hạn trial | ✅ |
+| US-T5 PaywallSheet khi hết lượt (tu-vi / tướng số / chat) + disclaimer | ✅ |
+| Matrix Free/Trial/Pro trên Pro tab | ✅ |
+| Demo toggle ẩn store (`canShowDemoProToggle`) | ✅ |
+| Legal Privacy/Terms in-app | ✅ |
+| Device-ID anti-abuse | ❌ chưa (chỉ account-level) |
+| Sync Free usage cloud | ❌ vẫn AsyncStorage |
+| IAP RevenueCat thật | ⚠️ stub hooks — chưa SDK mua được |
+| AI production | ⚠️ pluggable + worker mẫu; default vẫn mock nếu thiếu env |
+| Analytics `trial_*` events | ❌ chưa thấy |
+| Countdown vs server clock | ⚠️ start dùng `now()` server; remaining evaluate client |
+
+**Còn mở trước store thu tiền:** RC SDK + products · AdMob thật · AI env prod · (optional) device anti-abuse · analytics.
+
+*Spot-check BA — báo CoS.*
+
+
+---
+
+## 11. Eng follow-up (2026-09-13) — RLS lock + personalized AI
+
+**Đã làm:**
+- Entitlement columns **client read-only** (column GRANT + trigger). Trial chỉ `start_trial_if_eligible`. Paid: `apply_paid_pro` / service_role. App **bỏ** fallback `UPDATE trial_*`.
+- Access flow lock: Free signup → onboarding → trial. Không trial trước đăng ký.
+- `user_traits` + `horoscope_chats` (RLS own-only).
+- Tab Tử vi hội thoại nhiều lượt; `callAi` + system prompt; mock offline.
+
+**Cách test:** xem `docs/PILOT-CHECKLIST.md` §3.
+
+*Eng — báo CoS / Dat.*

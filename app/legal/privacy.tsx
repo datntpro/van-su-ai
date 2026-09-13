@@ -44,11 +44,11 @@ export default function PrivacyPolicyScreen() {
           • RevenueCat / cửa hàng (IAP) khi bật mua Pro.{'\n'}
           • AdMob (quảng cáo) trên gói Free khi cấu hình.{'\n'}
           • Nhà cung cấp AI (Workers AI / OpenAI hoặc tương đương) nếu EXPO_PUBLIC_AI_API_URL được
-          cấu hình — nội dung gửi đi có thể gồm hồ sơ sinh và câu hỏi chat.
+          cấu hình — nội dung gửi đi có thể gồm hồ sơ sinh, user_traits và câu hỏi chat.
         </Section>
 
         <Section title="6. Lưu trữ & bảo mật">
-          Dữ liệu hồ sơ lưu trên Supabase theo RLS (mỗi user chỉ đọc/sửa row của mình). Giới hạn
+          Dữ liệu hồ sơ / traits / chat tử vi lưu trên Supabase theo RLS (mỗi user chỉ đọc/sửa row của mình). Giới hạn
           Free (số lần dùng) hiện lưu local trên thiết bị. Chúng tôi không bán dữ liệu cá nhân.
         </Section>
 
