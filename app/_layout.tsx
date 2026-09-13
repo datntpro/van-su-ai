@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { AppProvider, useApp } from '@/src/context/AppContext';
 import { OnboardingModal } from '@/src/components/OnboardingModal';
+import { TrialExpiredModal } from '@/src/components/TrialExpiredModal';
 import { colors } from '@/src/theme/colors';
 
 export { ErrorBoundary } from 'expo-router';
@@ -75,8 +76,25 @@ function RootNav() {
             headerTintColor: colors.gold,
           }}
         />
+        <Stack.Screen
+          name="legal/privacy"
+          options={{
+            title: 'Quyền riêng tư',
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.gold,
+          }}
+        />
+        <Stack.Screen
+          name="legal/terms"
+          options={{
+            title: 'Điều khoản',
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.gold,
+          }}
+        />
       </Stack>
       {user ? <OnboardingModal visible={!profile} /> : null}
+      <TrialExpiredModal />
     </>
   );
 }

@@ -59,7 +59,8 @@ export function OnboardingModal({ visible }: { visible: boolean }) {
             <Text style={styles.kicker}>Chào mừng</Text>
             <Text style={styles.title}>Van Su AI</Text>
             <Text style={styles.sub}>
-              Nhập thông tin để nhận lịch vạn sự & tử vi cá nhân hóa (giải trí).
+              Nhập thông tin để nhận lịch vạn sự & tử vi cá nhân hóa (giải trí). Tài khoản
+              cloud sẽ nhận Trial Pro 7 ngày sau khi lưu ngày sinh (một lần / tài khoản).
             </Text>
 
             <Text style={styles.label}>Tên gọi (tuỳ chọn)</Text>

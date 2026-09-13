@@ -31,8 +31,13 @@ type AuthContextValue = {
   isDemoAuth: boolean;
   supabaseConfigured: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string) => Promise<{ error?: string; needsConfirm?: boolean }>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error?: string; needsConfirm?: boolean }>;
   signOut: () => Promise<void>;
+  /** Force refresh session token (cloud only). */
+  refreshSession: () => Promise<{ error?: string }>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -55,11 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       if (isSupabaseConfigured) {
         const sb = getSupabase()!;
-        const { data } = await sb.auth.getSession();
+        const { data, error } = await sb.auth.getSession();
+        if (error) console.warn('[auth] getSession', error.message);
         setSession(data.session);
-        const { data: sub } = sb.auth.onAuthStateChange((_event, next) => {
+        const { data: sub } = sb.auth.onAuthStateChange(async (event, next) => {
           setSession(next);
           setDemo(null);
+          // Soft refresh on TOKEN_REFRESHED / SIGNED_IN
+          if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+            console.info('[auth]', event);
+          }
         });
         unsub = () => sub.subscription.unsubscribe();
       } else {
@@ -134,6 +144,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDemo(null);
   }, []);
 
+  const refreshSession = useCallback(async () => {
+    if (!isSupabaseConfigured) return {};
+    const sb = getSupabase();
+    if (!sb) return { error: 'Chưa cấu hình Supabase.' };
+    const { data, error } = await sb.auth.refreshSession();
+    if (error) return { error: authErrorVi(error.message) };
+    setSession(data.session);
+    return {};
+  }, []);
+
   const isDemoAuth = !isSupabaseConfigured && demo != null;
 
   /** Synthetic user for demo mode so UI can treat "logged in" uniformly. */
@@ -162,8 +182,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signUp,
       signOut,
+      refreshSession,
     }),
-    [ready, session, user, hasSession, isDemoAuth, signIn, signUp, signOut],
+    [
+      ready,
+      session,
+      user,
+      hasSession,
+      isDemoAuth,
+      signIn,
+      signUp,
+      signOut,
+      refreshSession,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

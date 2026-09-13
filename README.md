@@ -1,6 +1,6 @@
 # Van Su AI
 
-Ứng dụng giải trí lịch vạn sự / tử vi / tướng số bằng tiếng Việt, xây bằng **Expo + React Native + TypeScript + Expo Router**.
+Ứng dụng giải trí lịch vạn sự / tử vi / tướng số bằng tiếng Việt — **Expo + React Native + TypeScript + Expo Router**.
 
 > **Chỉ mang tính giải trí, không phải lời khuyên chuyên môn.**
 
@@ -9,109 +9,97 @@
 ```bash
 cd van-su-ai
 npm install
-cp .env.example .env   # điền Supabase URL + anon key (tuỳ chọn)
+cp .env.example .env   # Supabase URL + anon key (bắt buộc cho trial cloud)
 npx expo start
-# hoặc: npm start
 ```
-
-Quét QR bằng app **Expo Go**, hoặc nhấn `a` (Android) / `i` (iOS simulator) / `w` (web).
 
 ### Scripts
 
 | Lệnh | Mô tả |
 |------|--------|
 | `npm start` | `expo start` |
-| `npm test` | Jest unit tests (lịch âm) |
-| `npm run test:calendar` | Script Node assert ngày cố định `2026-09-13` |
+| `npm test` | Jest (lịch âm + entitlement) |
+| `npm run test:calendar` | Assert ngày cố định |
 
-## Tính năng MVP
+## Free / Trial 7 ngày / Pro
 
-### Auth (Supabase)
-- Màn **Đăng nhập** / **Đăng ký** (email + mật khẩu) trước khi vào tabs
-- Hồ sơ `profiles` trên cloud (ngày/giờ/nơi sinh, `is_pro`)
-- Giới hạn Free (tử vi/ngày, tướng số/tuần, chat/ngày) **vẫn lưu local** (`AsyncStorage`) — chưa sync usage lên cloud
-- **Demo mode**: nếu thiếu `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`, app hiện banner **"Chưa cấu hình Supabase"** và auth chạy mock trên máy (không gọi API)
+| Tính năng | Free | Trial 7 ngày | Pro (paid) |
+|-----------|------|--------------|------------|
+| Lịch vạn sự hôm nay | ✓ | ✓ | ✓ |
+| Tử vi ngày | 1/ngày | Unlimited | Unlimited |
+| Tướng số ảnh | 1/tuần | Unlimited | Unlimited |
+| Chat AI | 5 tin/ngày | Unlimited | Unlimited |
+| Quảng cáo | Có (placeholder) | **Không** | **Không** |
+| Countdown trial | — | ✓ | — |
+| IAP / Restore | CTA | Soft CTA D5–6 | Active |
+| Demo toggle `isPro` | **Chỉ `__DEV__`** | **Chỉ `__DEV__`** | **Ẩn store** |
 
-### Tabs
-- **Hôm nay** — dương lịch + âm lịch, ngày tốt/xấu (heuristic), giờ hoàng đạo, vào Chat AI
-- **Tử vi** — luận giải ngày từ hồ sơ (template VI; optional `EXPO_PUBLIC_MOCK_AI_URL`)
-- **Tướng số** — chọn ảnh (`expo-image-picker`) → văn bản phân tích mock
-- **Pro / Cài đặt** — bảng Free vs Pro, disclaimer, bật Pro demo, **Đăng xuất**
+**Entitlement:** `effectivePro = is_pro (paid) OR (trial_consumed && now < trial_ends_at)`.  
+`profiles.is_pro` = **paid only** — không set true vì trial.
 
-### Onboarding
-Modal bắt buộc **ngày sinh**; giờ/nơi sinh tuỳ chọn → lưu `AsyncStorage` và **đồng bộ lên Supabase `profiles`** khi đã đăng nhập cloud.
+**Trial Option A:** sau đăng ký **cloud** + hoàn tất onboarding ngày sinh, một lần / account (`trial_consumed`). Demo/offline auth **không** cấp trial cloud.
 
-### Free vs Pro
+Chi tiết BA: `docs/BA-FEATURE-GAP.md` · Checklist pilot: `docs/PILOT-CHECKLIST.md`.
 
-| | Free | Pro |
-|--|------|-----|
-| Tử vi | 1 lần/ngày | Không giới hạn |
-| Tướng số | 1 lần/tuần | Không giới hạn |
-| Chat AI | 5 tin/ngày | Không giới hạn |
-| Quảng cáo | Placeholder | Ẩn |
-| Mở khóa | — | Toggle local `isPro` (+ sync `profiles.is_pro` nếu có cloud) |
+## Auth (Supabase)
 
-Pro thật (IAP) chưa gắn — xem placeholder RevenueCat.
+- Đăng nhập / Đăng ký email; messaging xác nhận email; `refreshSession`
+- Hồ sơ + trial fields trên `profiles` (RLS own-row)
+- Free usage counters: AsyncStorage (local)
+- Demo mode nếu thiếu env: banner vàng; **không** hứa trial 7 ngày production
 
-## Supabase — checklist cho Dat
+## Tabs & AI
 
-Làm **một lần** trên [Supabase Dashboard](https://supabase.com/dashboard):
+- **Hôm nay** — lịch + Trial banner / soft nudge D5–6 + ads nếu Free
+- **Tử vi / Chat** — pluggable AI: nếu `EXPO_PUBLIC_AI_API_URL` + `EXPO_PUBLIC_AI_API_KEY` → HTTP; else mock + badge **MOCK AI** trong `__DEV__`
+- **Tướng số** — ảnh → mock analysis (P1: vision API)
+- **Pro** — matrix Free/Trial/Pro, status trial, IAP stub, legal links
+- Legal: `app/legal/privacy.tsx`, `app/legal/terms.tsx`
 
-1. **Tạo project** (region gần VN nếu muốn, vd. Singapore).
-2. **Authentication → Providers → Email**: bật Email. Tuỳ chọn tắt “Confirm email” khi đang dev (để đăng ký vào app ngay).
-3. **Project Settings → API**:
-   - Copy **Project URL** → `EXPO_PUBLIC_SUPABASE_URL`
-   - Copy **anon / public** key → `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-   - **Không** dùng `service_role` trong app Expo / bất kỳ biến `EXPO_PUBLIC_*` nào.
-4. **SQL Editor**: chạy toàn bộ file  
-   `supabase/migrations/20260913000000_profiles.sql`  
-   (tạo bảng `profiles`, RLS, trigger tạo profile khi signup).
-5. Copy `.env.example` → `.env`, dán URL + anon key, restart `npx expo start`.
-6. Kiểm tra: Đăng ký → vào tabs → onboarding → xem row trong **Table Editor → profiles**.
+Worker stub (optional): `worker/` — proxy Workers AI / OpenAI, contract JSON documented.
 
-### Demo / offline (không có env)
+## Supabase — checklist nhanh
 
-- Auth screens vẫn bắt buộc.
-- Đăng nhập/đăng ký tạo session **local** (AsyncStorage).
-- Banner vàng: **Chưa cấu hình Supabase**.
-- Hồ sơ & Free limits chỉ trên thiết bị.
+1. Email auth bật (Confirm email: tắt khi dogfood nhanh / bật khi pilot gần store).
+2. Chạy migrations:
+   - `20260913000000_profiles.sql`
+   - `20260913120000_trial_entitlement.sql` (trial columns + RPC `start_trial_if_eligible`)
+3. Chỉ **anon** key trong Expo — **never service_role**.
+4. Store build: `EXPO_PUBLIC_STORE_BUILD=1` + bắt buộc Supabase env (tắt demo).
+
+Xem đầy đủ: `docs/PILOT-CHECKLIST.md`.
 
 ## Env
 
 ```bash
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_STORE_BUILD=1
+EXPO_PUBLIC_AI_API_URL=
+EXPO_PUBLIC_AI_API_KEY=
 EXPO_PUBLIC_MOCK_AI_URL=
 EXPO_PUBLIC_ADMOB_BANNER_ID=
 EXPO_PUBLIC_REVENUECAT_API_KEY=
 ```
 
-**Không commit secret.** Dùng EAS Secrets khi build store. Chỉ anon/publishable key trong client.
+**Không commit secret.** EAS Secrets cho store. RevenueCat / AdMob: xem comment trong `src/services/revenuecat.ts`, `src/services/admob.ts`.
 
 ## Cấu trúc chính
 
 ```
-app/(auth)/           # Đăng nhập / Đăng ký
-app/(tabs)/           # Tabs + chat modal
-src/context/          # AuthContext + AppContext
-src/lib/supabase.ts   # Client + demo-mode helpers
-src/lib/profileSync.ts# Merge AsyncStorage ↔ profiles
-supabase/migrations/  # SQL cho cloud DB
-src/lib/calendar.ts   # Dương ↔ âm, can chi, giờ hoàng đạo
-src/lib/limits.ts     # Giới hạn Free (AsyncStorage — local)
-src/services/admob.ts # TODO AdMob
-src/services/revenuecat.ts # TODO IAP
+app/(auth)/            # Login / Register (+ legal links)
+app/(tabs)/            # Hôm nay, Tử vi, Tướng số, Pro
+app/legal/             # Privacy + Terms (VI)
+app/chat.tsx           # Chat AI modal
+src/lib/entitlement.ts # effectivePro / trial math
+src/lib/ai.ts          # Pluggable AI client
+src/lib/profileSync.ts # profiles + startTrialOnCloud
+src/services/revenuecat.ts  # configure + syncPaidProFromCustomerInfo hooks
+worker/                # Optional CF Worker AI proxy
+supabase/migrations/   # profiles + trial
+docs/PILOT-CHECKLIST.md
 ```
-
-## Store / pháp lý (ghi chú)
-
-- Hiển thị disclaimer trên onboarding, tab nội dung và màn Pro.
-- Trước khi lên App Store / Play Store: Privacy Policy, Terms, age rating, cấu hình AdMob & IAP thật, bỏ toggle demo nếu cần.
-- Nội dung AI/mock **không** thay thế tư vấn y tế, pháp lý, tài chính.
 
 ## Tech
 
-- Expo SDK 57
-- Expo Router (auth stack + tabs)
-- Supabase Auth (`@supabase/supabase-js`) + RLS profiles
-- AsyncStorage, DateTimePicker, ImagePicker
+Expo SDK 57 · Expo Router · Supabase Auth + RLS · AsyncStorage · Jest

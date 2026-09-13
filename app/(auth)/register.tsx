@@ -17,7 +17,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { colors } from '@/src/theme/colors';
 
 export default function RegisterScreen() {
-  const { signUp } = useAuth();
+  const { signUp, supabaseConfigured } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,9 +40,17 @@ export default function RegisterScreen() {
     }
     if (res.needsConfirm) {
       Alert.alert(
-        'Kiểm tra email',
-        'Đã gửi liên kết xác nhận. Sau khi xác nhận, hãy đăng nhập.',
-        [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }],
+        'Xác nhận email',
+        'Chúng tôi đã gửi liên kết xác nhận tới hộp thư của bạn (kiểm tra cả thư mục spam). Sau khi bấm xác nhận, hãy quay lại app và đăng nhập.\n\nKhi đã vào app và hoàn tất ngày sinh, bạn sẽ nhận Trial Pro 7 ngày (một lần / tài khoản).',
+        [{ text: 'Tới đăng nhập', onPress: () => router.replace('/(auth)/login') }],
+      );
+      return;
+    }
+    // Session created immediately (confirm email off)
+    if (supabaseConfigured) {
+      Alert.alert(
+        'Đăng ký thành công',
+        'Hoàn tất ngày sinh ở bước tiếp theo để bắt đầu Trial Pro 7 ngày.',
       );
     }
   };
@@ -61,7 +69,9 @@ export default function RegisterScreen() {
           <Text style={styles.kicker}>VAN SU AI</Text>
           <Text style={styles.title}>Đăng ký</Text>
           <Text style={styles.sub}>
-            Tạo tài khoản bằng email. Hồ sơ ngày sinh sẽ đồng bộ lên Supabase khi đã cấu hình.
+            {supabaseConfigured
+              ? 'Tạo tài khoản email. Sau onboarding ngày sinh bạn nhận Trial Pro 7 ngày (một lần).'
+              : 'Chế độ demo (chưa Supabase): session chỉ trên máy — không có trial cloud.'}
           </Text>
 
           <Text style={styles.label}>Email</Text>
@@ -99,6 +109,18 @@ export default function RegisterScreen() {
           />
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Text style={styles.legal}>
+            Bằng việc đăng ký, bạn đồng ý với{' '}
+            <Link href="/legal/terms" style={styles.linkInline}>
+              Điều khoản
+            </Link>{' '}
+            và{' '}
+            <Link href="/legal/privacy" style={styles.linkInline}>
+              Chính sách quyền riêng tư
+            </Link>
+            .
+          </Text>
 
           <View style={{ height: 20 }} />
           <PrimaryButton title="Đăng ký" onPress={onSubmit} loading={loading} variant="gold" />
@@ -153,6 +175,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: { color: colors.danger, marginTop: 12 },
+  legal: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 16,
+  },
+  linkInline: { color: colors.gold, fontWeight: '700' },
   footer: {
     color: colors.textMuted,
     textAlign: 'center',

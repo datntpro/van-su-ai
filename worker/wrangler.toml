@@ -1,0 +1,6 @@
+name = "van-su-ai-proxy"
+main = "index.js"
+compatibility_date = "2026-09-01"
+
+# secrets: wrangler secret put AI_API_KEY
+# secrets: wrangler secret put OPENAI_API_KEY

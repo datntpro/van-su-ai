@@ -1,11 +1,15 @@
 import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Link } from 'expo-router';
 
 import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
-import { useApp } from '@/src/context/AppContext';
+import { SoftTrialNudge } from '@/src/components/TrialBanner';
+import { useApp, useEffectivePro } from '@/src/context/AppContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { SupabaseBanner } from '@/src/components/SupabaseBanner';
+import { formatTrialCountdown } from '@/src/lib/entitlement';
+import { canShowDemoProToggle } from '@/src/lib/flags';
 import { FREE_LIMITS } from '@/src/lib/limits';
 import {
   purchasePro,
@@ -14,87 +18,143 @@ import {
 } from '@/src/services/revenuecat';
 import { colors, DISCLAIMER } from '@/src/theme/colors';
 
-const ROWS: { feature: string; free: string; pro: string }[] = [
-  { feature: 'Lịch vạn sự hôm nay', free: '✓', pro: '✓' },
-  { feature: 'Tử vi ngày', free: `${FREE_LIMITS.horoscopePerDay}/ngày`, pro: 'Không giới hạn' },
+const ROWS: { feature: string; free: string; trial: string; pro: string }[] = [
+  { feature: 'Lịch vạn sự hôm nay', free: '✓', trial: '✓', pro: '✓' },
+  {
+    feature: 'Tử vi ngày',
+    free: `${FREE_LIMITS.horoscopePerDay}/ngày`,
+    trial: 'Unlimited',
+    pro: 'Unlimited',
+  },
   {
     feature: 'Tướng số (ảnh)',
     free: `${FREE_LIMITS.facePerWeek}/tuần`,
-    pro: 'Không giới hạn',
+    trial: 'Unlimited',
+    pro: 'Unlimited',
   },
   {
     feature: 'Chat AI',
     free: `${FREE_LIMITS.chatMessages} tin/ngày`,
-    pro: 'Không giới hạn',
+    trial: 'Unlimited',
+    pro: 'Unlimited',
   },
-  { feature: 'Quảng cáo', free: 'Có (placeholder)', pro: 'Ẩn' },
-  { feature: 'Mở khóa local demo', free: '—', pro: '✓' },
+  { feature: 'Quảng cáo', free: 'Có', trial: 'Không', pro: 'Không' },
+  { feature: 'Countdown trial', free: '—', trial: '✓', pro: '—' },
 ];
 
 export default function ProScreen() {
-  const { isPro, setIsPro, profile, clearProfile } = useApp();
+  const {
+    setIsPro,
+    profile,
+    clearProfile,
+    entitlement,
+    applyPaidFromRevenueCat,
+  } = useApp();
+  const { effectivePro, isProPaid } = useEffectivePro();
   const { signOut, user, isDemoAuth, supabaseConfigured } = useAuth();
+  const showDemo = canShowDemoProToggle();
+
+  const statusLine = (() => {
+    if (isProPaid) return 'Bạn đang dùng Pro (đã mua)';
+    if (entitlement.trialActive)
+      return `Pro dùng thử · ${formatTrialCountdown(entitlement)}`;
+    if (entitlement.trialExpired) return 'Trial đã hết · đang Free';
+    if (isDemoAuth) return 'Demo / offline · không có trial cloud';
+    return 'Gói Free · nâng cấp để mở khoá';
+  })();
 
   const onPurchase = async () => {
     const res = await purchasePro();
+    if (res.paid) await applyPaidFromRevenueCat(true);
     Alert.alert('In-App Purchase', res.message);
   };
 
   const onRestore = async () => {
     const res = await restorePurchases();
-    Alert.alert('Khôi phục', res.message);
+    if (res.paid) await applyPaidFromRevenueCat(true);
+    Alert.alert(
+      'Khôi phục',
+      res.message + (res.paid ? '' : '\n(Restore không gia hạn trial.)'),
+    );
   };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <SupabaseBanner />
       <Text style={styles.title}>Pro / Cài đặt</Text>
-      <Text style={styles.sub}>
-        {isPro ? 'Bạn đang dùng Pro (demo local)' : 'Gói Free · nâng cấp để mở khoá'}
-      </Text>
+      <Text style={styles.sub}>{statusLine}</Text>
+
+      <SoftTrialNudge onUpgrade={() => {}} />
 
       <Card style={{ borderColor: colors.gold }}>
-        <Text style={styles.matrixTitle}>So sánh Free vs Pro</Text>
+        <Text style={styles.matrixTitle}>Free · Trial 7 ngày · Pro</Text>
         <View style={styles.rowHead}>
-          <Text style={[styles.cell, styles.head, { flex: 1.4 }]}>Tính năng</Text>
+          <Text style={[styles.cell, styles.head, { flex: 1.5 }]}>Tính năng</Text>
           <Text style={[styles.cell, styles.head]}>Free</Text>
+          <Text style={[styles.cell, styles.head, { color: colors.purpleSoft }]}>Trial</Text>
           <Text style={[styles.cell, styles.head, { color: colors.gold }]}>Pro</Text>
         </View>
         {ROWS.map((r) => (
           <View key={r.feature} style={styles.row}>
-            <Text style={[styles.cell, { flex: 1.4, textAlign: 'left' }]}>{r.feature}</Text>
+            <Text style={[styles.cell, { flex: 1.5, textAlign: 'left' }]}>{r.feature}</Text>
             <Text style={styles.cell}>{r.free}</Text>
+            <Text style={[styles.cell, { color: colors.purpleSoft }]}>{r.trial}</Text>
             <Text style={[styles.cell, { color: colors.goldSoft }]}>{r.pro}</Text>
           </View>
         ))}
       </Card>
 
-      <Card style={{ marginTop: 14 }}>
-        <View style={styles.switchRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.switchLabel}>Mở khóa Pro (demo local)</Text>
-            <Text style={styles.switchHint}>
-              Cờ `isPro` lưu AsyncStorage — không phải thanh toán thật
-            </Text>
+      {entitlement.trialActive ? (
+        <Card style={{ marginTop: 14, borderColor: colors.gold }}>
+          <Text style={styles.matrixTitle}>Trạng thái Trial</Text>
+          <Text style={styles.profileLine}>{formatTrialCountdown(entitlement)}</Text>
+          <Text style={styles.switchHint}>
+            Hết hạn: {entitlement.trialEndsAt
+              ? new Date(entitlement.trialEndsAt).toLocaleString('vi-VN')
+              : '—'}
+          </Text>
+        </Card>
+      ) : null}
+
+      {showDemo ? (
+        <Card style={{ marginTop: 14 }}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>Mở khóa Pro (demo · __DEV__)</Text>
+              <Text style={styles.switchHint}>
+                Chỉ hiện khi __DEV__. Store build / production ẩn hoàn toàn.
+              </Text>
+            </View>
+            <Switch
+              value={isProPaid}
+              onValueChange={setIsPro}
+              trackColor={{ false: colors.border, true: colors.purple }}
+              thumbColor={isProPaid ? colors.gold : '#ccc'}
+            />
           </View>
-          <Switch
-            value={isPro}
-            onValueChange={setIsPro}
-            trackColor={{ false: colors.border, true: colors.purple }}
-            thumbColor={isPro ? colors.gold : '#ccc'}
-          />
-        </View>
-      </Card>
+        </Card>
+      ) : null}
 
       <View style={{ height: 12 }} />
-      <PrimaryButton title="Mua Pro (IAP placeholder)" onPress={onPurchase} variant="gold" />
+      <PrimaryButton title="Mua Pro (IAP)" onPress={onPurchase} variant="gold" />
       <View style={{ height: 8 }} />
       <PrimaryButton title="Khôi phục mua hàng" onPress={onRestore} variant="ghost" />
 
       <Text style={styles.envHint}>
         RevenueCat:{' '}
         {isRevenueCatConfigured() ? 'đã thấy API key env' : 'chưa cấu hình (TODO)'}
+        {effectivePro && !isProPaid ? ' · đang Trial' : ''}
       </Text>
+
+      <Card style={{ marginTop: 14 }}>
+        <Text style={styles.matrixTitle}>Pháp lý</Text>
+        <Link href="/legal/privacy" style={styles.link}>
+          Chính sách quyền riêng tư
+        </Link>
+        <Link href="/legal/terms" style={[styles.link, { marginTop: 8 }]}>
+          Điều khoản sử dụng
+        </Link>
+      </Card>
 
       <Card style={{ marginTop: 14 }}>
         <Text style={styles.matrixTitle}>Hồ sơ</Text>
@@ -128,17 +188,16 @@ export default function ProScreen() {
         )}
       </Card>
 
-
       <Card style={{ marginTop: 14 }}>
         <Text style={styles.matrixTitle}>Tài khoản</Text>
         <Text style={styles.profileLine}>
           {user?.email ?? '—'}
-          {isDemoAuth ? ' · demo local' : ''}
+          {isDemoAuth ? ' · demo local (không trial cloud)' : ''}
         </Text>
         <Text style={styles.switchHint}>
           {supabaseConfigured
-            ? 'Hồ sơ ngày sinh đồng bộ Supabase; giới hạn Free vẫn lưu trên máy.'
-            : 'Chế độ demo: chưa có Supabase URL/anon key — session chỉ trên thiết bị.'}
+            ? 'Hồ sơ + trial đồng bộ Supabase; giới hạn Free vẫn lưu trên máy.'
+            : 'Chế độ demo: chưa có Supabase — không cấp trial Pro 7 ngày như production.'}
         </Text>
         <View style={{ height: 10 }} />
         <PrimaryButton
@@ -161,9 +220,7 @@ export default function ProScreen() {
       <DisclaimerBanner />
       <Text style={styles.legal}>{DISCLAIMER}</Text>
       <Text style={styles.legal}>
-        Ứng dụng mang tính giải trí. Không thay thế tư vấn y tế, pháp lý, tài chính hay
-        tâm linh chuyên môn. Khi lên store: bổ sung chính sách quyền riêng tư, điều khoản,
-        và cấu hình AdMob/RevenueCat qua EAS secrets — không commit secret vào git.
+        Khi lên store: cấu hình AdMob & RevenueCat qua EAS secrets — không commit secret / service_role.
       </Text>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -186,7 +243,7 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     color: colors.text,
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
   },
   head: { fontWeight: '700', color: colors.purpleSoft },
@@ -195,6 +252,7 @@ const styles = StyleSheet.create({
   switchHint: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
   envHint: { color: colors.textMuted, fontSize: 12, marginTop: 10, textAlign: 'center' },
   profileLine: { color: colors.text, marginTop: 4 },
+  link: { color: colors.gold, fontWeight: '700', fontSize: 15 },
   legal: {
     color: colors.textMuted,
     fontSize: 12,

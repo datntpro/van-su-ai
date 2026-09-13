@@ -1,31 +1,23 @@
 import type { UserProfile } from './profile';
 import { yearAnimal, zodiacFromBirthDate } from './profile';
 import { getDayFortune } from './calendar';
+import { callAi, type AiResult } from './ai';
+import { DISCLAIMER } from '@/src/theme/colors';
 
 /**
- * Generate Vietnamese daily horoscope from profile + date (template).
- * Optional mock AI fetch can be wired via EXPO_PUBLIC_MOCK_AI_URL.
+ * Generate Vietnamese daily horoscope.
+ * Uses EXPO_PUBLIC_AI_API_URL when configured; else improved mock.
  */
 export async function generateDailyHoroscope(
   profile: UserProfile,
   date: Date = new Date(),
-): Promise<string> {
-  const mockUrl = process.env.EXPO_PUBLIC_MOCK_AI_URL;
-  if (mockUrl) {
-    try {
-      const res = await fetch(mockUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'horoscope', profile, date: date.toISOString() }),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { text?: string };
-        if (data.text) return data.text;
-      }
-    } catch {
-      // fall through to template
-    }
-  }
+): Promise<AiResult> {
+  const ai = await callAi({
+    type: 'horoscope',
+    profile,
+    date: date.toISOString(),
+  });
+  if (ai.text) return ai;
 
   const fortune = getDayFortune(date);
   const sign = zodiacFromBirthDate(profile.birthDate);
@@ -38,7 +30,7 @@ export async function generateDailyHoroscope(
         ? 'cần giữ vững'
         : 'ổn định';
 
-  return [
+  const text = [
     `✦ Tử vi ngày ${fortune.solar.day}/${fortune.solar.month}/${fortune.solar.year} dành cho ${name}`,
     ``,
     `Cung ${sign} · Tuổi ${animal} · Can Chi ngày: ${fortune.canChiDay}`,
@@ -67,8 +59,18 @@ export async function generateDailyHoroscope(
     ``,
     `Sức khỏe: Uống đủ nước, nghỉ mắt sau mỗi 1–2 giờ làm việc.`,
     ``,
-    `Lời khuyên: Chọn giờ hoàng đạo ${fortune.hoangDaoHours.filter((h) => h.good).slice(0, 2).map((h) => h.name).join(', ')} nếu cần xuất hành.`,
+    `Lời khuyên: Chọn giờ hoàng đạo ${fortune.hoangDaoHours
+      .filter((h) => h.good)
+      .slice(0, 2)
+      .map((h) => h.name)
+      .join(', ')} nếu cần xuất hành.`,
     ``,
-    `— Van Su AI · Chỉ mang tính giải trí —`,
+    `— Van Su AI · ${DISCLAIMER} —`,
   ].join('\n');
+
+  return {
+    text,
+    source: 'mock',
+    showMockBadge: typeof __DEV__ !== 'undefined' && __DEV__,
+  };
 }

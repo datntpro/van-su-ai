@@ -8,29 +8,30 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
-import { useApp } from '@/src/context/AppContext';
+import { useEffectivePro } from '@/src/context/AppContext';
 import { mockFaceAnalysis } from '@/src/lib/face-analysis';
 import { canUseFace, consumeFace, FREE_LIMITS } from '@/src/lib/limits';
 import { colors } from '@/src/theme/colors';
 
 export default function TuongSoScreen() {
-  const { isPro } = useApp();
-  const router = useRouter();
+  const { effectivePro } = useEffectivePro();
   const [uri, setUri] = useState<string | null>(null);
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [paywall, setPaywall] = useState(false);
 
   const refreshLimit = useCallback(async () => {
-    const r = await canUseFace(isPro);
+    const r = await canUseFace(effectivePro);
     setRemaining(r.remaining);
-  }, [isPro]);
+  }, [effectivePro]);
 
   useFocusEffect(
     useCallback(() => {
@@ -39,16 +40,9 @@ export default function TuongSoScreen() {
   );
 
   const pickAndAnalyze = async () => {
-    const gate = await canUseFace(isPro);
+    const gate = await canUseFace(effectivePro);
     if (!gate.ok) {
-      Alert.alert(
-        'Đã hết lượt Free',
-        `Free: ${FREE_LIMITS.facePerWeek} lần/tuần. Nâng Pro để phân tích không giới hạn.`,
-        [
-          { text: 'Đóng', style: 'cancel' },
-          { text: 'Xem Pro', onPress: () => router.push('/pro') },
-        ],
-      );
+      setPaywall(true);
       return;
     }
 
@@ -72,7 +66,7 @@ export default function TuongSoScreen() {
     setResult('');
     try {
       const text = await mockFaceAnalysis(asset.uri);
-      await consumeFace(isPro);
+      await consumeFace(effectivePro);
       setResult(text);
       await refreshLimit();
     } finally {
@@ -84,8 +78,8 @@ export default function TuongSoScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Tướng số AI</Text>
       <Text style={styles.sub}>
-        {isPro
-          ? 'Pro · Không giới hạn'
+        {effectivePro
+          ? 'Pro / Trial · Không giới hạn'
           : `Free · Còn ${remaining ?? '…'}/${FREE_LIMITS.facePerWeek} lượt tuần này`}
       </Text>
 
@@ -107,20 +101,27 @@ export default function TuongSoScreen() {
       ) : (
         <Card style={{ marginTop: 16 }}>
           <Text style={styles.placeholder}>
-            Chọn ảnh chân dung rõ nét. Kết quả là văn bản mô phỏng AI — chỉ để giải trí.
+            Chọn ảnh chân dung rõ nét. Không dùng ảnh trẻ em. Kết quả chỉ để giải trí.
           </Text>
         </Card>
       )}
 
-      {!isPro ? (
+      {!effectivePro ? (
         <>
           <View style={{ height: 12 }} />
-          <AdPlaceholder />
+          <AdPlaceholder placement="banner_home" />
         </>
       ) : null}
       <View style={{ height: 12 }} />
       <DisclaimerBanner />
       <View style={{ height: 32 }} />
+
+      <PaywallSheet
+        visible={paywall}
+        feature="face"
+        remaining={remaining ?? 0}
+        onClose={() => setPaywall(false)}
+      />
     </ScrollView>
   );
 }

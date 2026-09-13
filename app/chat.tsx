@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -9,33 +8,36 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 
+import { MockAiBadge } from '@/src/components/MockAiBadge';
+import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
-import { useApp } from '@/src/context/AppContext';
-import { ChatMessage, mockChatReply } from '@/src/lib/chat';
+import { useApp, useEffectivePro } from '@/src/context/AppContext';
+import { ChatMessage, chatReply } from '@/src/lib/chat';
 import { canUseChat, consumeChat, FREE_LIMITS } from '@/src/lib/limits';
-import { colors } from '@/src/theme/colors';
+import { colors, DISCLAIMER } from '@/src/theme/colors';
 
 export default function ChatScreen() {
-  const { profile, isPro } = useApp();
-  const router = useRouter();
+  const { profile } = useApp();
+  const { effectivePro } = useEffectivePro();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Xin chào! Mình là Van Su AI. Hỏi gì về ngày hôm nay cũng được — nhớ đây chỉ là giải trí nhé.',
+      text: `Xin chào! Mình là Van Su AI. Hỏi gì về ngày hôm nay cũng được — nhớ đây chỉ là giải trí nhé.\n\n— ${DISCLAIMER} —`,
       createdAt: new Date().toISOString(),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [paywall, setPaywall] = useState(false);
 
   const refreshLimit = useCallback(async () => {
-    const r = await canUseChat(isPro);
+    const r = await canUseChat(effectivePro);
     setRemaining(r.remaining);
-  }, [isPro]);
+  }, [effectivePro]);
 
   useFocusEffect(
     useCallback(() => {
@@ -47,16 +49,9 @@ export default function ChatScreen() {
     const q = input.trim();
     if (!q || !profile) return;
 
-    const gate = await canUseChat(isPro);
+    const gate = await canUseChat(effectivePro);
     if (!gate.ok) {
-      Alert.alert(
-        'Hết tin nhắn Free',
-        `Free: ${FREE_LIMITS.chatMessages} tin/ngày. Nâng Pro để chat thoải mái.`,
-        [
-          { text: 'Đóng', style: 'cancel' },
-          { text: 'Xem Pro', onPress: () => router.push('/pro') },
-        ],
-      );
+      setPaywall(true);
       return;
     }
 
@@ -70,15 +65,17 @@ export default function ChatScreen() {
     setInput('');
     setLoading(true);
     try {
-      await consumeChat(isPro);
-      const reply = await mockChatReply(q, profile);
+      await consumeChat(effectivePro);
+      const reply = await chatReply(q, profile);
       setMessages((m) => [
         ...m,
         {
           id: `a-${Date.now()}`,
           role: 'assistant',
-          text: reply,
+          text: reply.text,
           createdAt: new Date().toISOString(),
+          source: reply.source,
+          showMockBadge: reply.showMockBadge,
         },
       ]);
       await refreshLimit();
@@ -94,8 +91,8 @@ export default function ChatScreen() {
       keyboardVerticalOffset={80}
     >
       <Text style={styles.limit}>
-        {isPro
-          ? 'Pro · Chat không giới hạn'
+        {effectivePro
+          ? 'Pro / Trial · Chat không giới hạn'
           : `Free · Còn ${remaining ?? '…'}/${FREE_LIMITS.chatMessages} tin hôm nay`}
       </Text>
       <FlatList
@@ -109,6 +106,9 @@ export default function ChatScreen() {
               item.role === 'user' ? styles.user : styles.assistant,
             ]}
           >
+            {item.role === 'assistant' ? (
+              <MockAiBadge show={item.showMockBadge} />
+            ) : null}
             <Text style={styles.bubbleText}>{item.text}</Text>
           </View>
         )}
@@ -131,6 +131,13 @@ export default function ChatScreen() {
           style={{ paddingHorizontal: 16, paddingVertical: 12 }}
         />
       </View>
+
+      <PaywallSheet
+        visible={paywall}
+        feature="chat"
+        remaining={remaining ?? 0}
+        onClose={() => setPaywall(false)}
+      />
     </KeyboardAvoidingView>
   );
 }

@@ -5,17 +5,20 @@ import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
-import { useApp } from '@/src/context/AppContext';
+import { SoftTrialNudge, TrialBanner } from '@/src/components/TrialBanner';
+import { useApp, useEffectivePro } from '@/src/context/AppContext';
 import {
   formatLunar,
   formatSolar,
   getDayFortune,
 } from '@/src/lib/calendar';
+import { formatTrialCountdown } from '@/src/lib/entitlement';
 import { zodiacFromBirthDate, yearAnimal } from '@/src/lib/profile';
 import { colors } from '@/src/theme/colors';
 
 export default function HomNayScreen() {
-  const { profile, isPro } = useApp();
+  const { profile, entitlement } = useApp();
+  const { effectivePro, isProPaid } = useEffectivePro();
   const router = useRouter();
   const fortune = getDayFortune(new Date());
   const qualityColor =
@@ -25,8 +28,17 @@ export default function HomNayScreen() {
         ? colors.danger
         : colors.warning;
 
+  const statusLabel = isProPaid
+    ? 'Pro ✨'
+    : entitlement.trialActive
+      ? `Trial · ${formatTrialCountdown(entitlement)}`
+      : 'Free';
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <TrialBanner onPressPro={() => router.push('/pro')} />
+      <SoftTrialNudge onUpgrade={() => router.push('/pro')} />
+
       <Text style={styles.hello}>
         Xin chào{profile?.displayName ? `, ${profile.displayName}` : ''} 👋
       </Text>
@@ -47,7 +59,8 @@ export default function HomNayScreen() {
         {profile ? (
           <Text style={styles.profileHint}>
             Cung {zodiacFromBirthDate(profile.birthDate)} · Tuổi {yearAnimal(profile.birthDate)}
-            {isPro ? ' · Pro ✨' : ' · Free'}
+            {' · '}
+            {statusLabel}
           </Text>
         ) : null}
       </Card>
@@ -71,10 +84,10 @@ export default function HomNayScreen() {
       <View style={{ height: 12 }} />
       <PrimaryButton title="💬 Hỏi Van Su AI" onPress={() => router.push('/chat')} />
 
-      {!isPro ? (
+      {!effectivePro ? (
         <>
           <View style={{ height: 12 }} />
-          <AdPlaceholder label="Banner quảng cáo" />
+          <AdPlaceholder label="Banner quảng cáo" placement="banner_home" />
         </>
       ) : null}
 

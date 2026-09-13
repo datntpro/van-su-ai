@@ -1,27 +1,32 @@
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { MockAiBadge } from '@/src/components/MockAiBadge';
+import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
-import { useApp } from '@/src/context/AppContext';
+import { useApp, useEffectivePro } from '@/src/context/AppContext';
 import { generateDailyHoroscope } from '@/src/lib/horoscope';
 import { canUseHoroscope, consumeHoroscope, FREE_LIMITS } from '@/src/lib/limits';
 import { colors } from '@/src/theme/colors';
 
 export default function TuViScreen() {
-  const { profile, isPro } = useApp();
+  const { profile } = useApp();
+  const { effectivePro } = useEffectivePro();
   const router = useRouter();
   const [text, setText] = useState('');
+  const [showMock, setShowMock] = useState(false);
   const [loading, setLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [paywall, setPaywall] = useState(false);
 
   const refreshLimit = useCallback(async () => {
-    const r = await canUseHoroscope(isPro);
+    const r = await canUseHoroscope(effectivePro);
     setRemaining(r.remaining);
-  }, [isPro]);
+  }, [effectivePro]);
 
   useFocusEffect(
     useCallback(() => {
@@ -31,23 +36,17 @@ export default function TuViScreen() {
 
   const onGenerate = async () => {
     if (!profile) return;
-    const gate = await canUseHoroscope(isPro);
+    const gate = await canUseHoroscope(effectivePro);
     if (!gate.ok) {
-      Alert.alert(
-        'Đã hết lượt Free',
-        `Free: ${FREE_LIMITS.horoscopePerDay} lần/ngày. Nâng Pro để xem không giới hạn.`,
-        [
-          { text: 'Đóng', style: 'cancel' },
-          { text: 'Xem Pro', onPress: () => router.push('/pro') },
-        ],
-      );
+      setPaywall(true);
       return;
     }
     setLoading(true);
     try {
       const result = await generateDailyHoroscope(profile);
-      await consumeHoroscope(isPro);
-      setText(result);
+      await consumeHoroscope(effectivePro);
+      setText(result.text);
+      setShowMock(result.showMockBadge);
       await refreshLimit();
     } finally {
       setLoading(false);
@@ -58,8 +57,8 @@ export default function TuViScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Tử vi hôm nay</Text>
       <Text style={styles.sub}>
-        {isPro
-          ? 'Pro · Không giới hạn'
+        {effectivePro
+          ? 'Pro / Trial · Không giới hạn'
           : `Free · Còn ${remaining ?? '…'}/${FREE_LIMITS.horoscopePerDay} lượt hôm nay`}
       </Text>
 
@@ -72,6 +71,7 @@ export default function TuViScreen() {
 
       {text ? (
         <Card style={{ marginTop: 16 }}>
+          <MockAiBadge show={showMock} />
           <Text style={styles.body}>{text}</Text>
         </Card>
       ) : (
@@ -82,15 +82,22 @@ export default function TuViScreen() {
         </Card>
       )}
 
-      {!isPro ? (
+      {!effectivePro ? (
         <>
           <View style={{ height: 12 }} />
-          <AdPlaceholder />
+          <AdPlaceholder placement="banner_home" />
         </>
       ) : null}
       <View style={{ height: 12 }} />
       <DisclaimerBanner />
       <View style={{ height: 32 }} />
+
+      <PaywallSheet
+        visible={paywall}
+        feature="horoscope"
+        remaining={remaining ?? 0}
+        onClose={() => setPaywall(false)}
+      />
     </ScrollView>
   );
 }

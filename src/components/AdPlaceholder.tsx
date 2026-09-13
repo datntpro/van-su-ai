@@ -1,17 +1,31 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/src/theme/colors';
-import { isAdMobConfigured } from '@/src/services/admob';
+import {
+  isAdMobConfigured,
+  shouldShowAds,
+  type AdPlacement,
+} from '@/src/services/admob';
+import { useEffectivePro } from '@/src/context/AppContext';
 
-export function AdPlaceholder({ label = 'Quảng cáo' }: { label?: string }) {
+export function AdPlaceholder({
+  label = 'Quảng cáo',
+  placement = 'banner_home',
+}: {
+  label?: string;
+  placement?: AdPlacement;
+}) {
+  const { effectivePro } = useEffectivePro();
+  if (!shouldShowAds(effectivePro)) return null;
+
   const configured = isAdMobConfigured();
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>{label}</Text>
       <Text style={styles.sub}>
         {configured
-          ? 'AdMob banner placeholder (SDK chưa gắn)'
-          : 'AdMob chưa cấu hình · Free tier'}
+          ? `AdMob placeholder · ${placement} (SDK chưa gắn live)`
+          : 'AdMob chưa cấu hình · Free / hết trial'}
       </Text>
     </View>
   );
@@ -29,5 +43,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: { color: colors.goldSoft, fontSize: 12, fontWeight: '600' },
-  sub: { color: colors.textMuted, fontSize: 11, marginTop: 4 },
+  sub: { color: colors.textMuted, fontSize: 11, marginTop: 4, textAlign: 'center' },
 });

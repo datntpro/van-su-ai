@@ -1,12 +1,16 @@
 import type { UserProfile } from './profile';
 import { zodiacFromBirthDate, yearAnimal } from './profile';
 import { getDayFortune } from './calendar';
+import { callAi, type AiResult } from './ai';
+import { DISCLAIMER } from '@/src/theme/colors';
 
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   createdAt: string;
+  source?: 'api' | 'mock';
+  showMockBadge?: boolean;
 };
 
 const REPLIES = [
@@ -30,19 +34,40 @@ function truncate(s: string, n = 48): string {
   return t.length > n ? t.slice(0, n) + '…' : t;
 }
 
-export async function mockChatReply(
-  question: string,
-  profile: UserProfile,
-): Promise<string> {
-  await new Promise((r) => setTimeout(r, 600));
-  const idx = Math.abs(hash(question + profile.birthDate)) % REPLIES.length;
-  const fn = REPLIES[idx]!;
-  const body = fn(question, profile);
-  return `${body}\n\n— Chỉ mang tính giải trí —`;
-}
-
 function hash(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return h;
+}
+
+/** Chat reply via pluggable AI or improved mock. Always includes disclaimer. */
+export async function chatReply(
+  question: string,
+  profile: UserProfile,
+): Promise<AiResult> {
+  const ai = await callAi({
+    type: 'chat',
+    profile,
+    message: question,
+  });
+  if (ai.text) return ai;
+
+  await new Promise((r) => setTimeout(r, 600));
+  const idx = Math.abs(hash(question + profile.birthDate)) % REPLIES.length;
+  const fn = REPLIES[idx]!;
+  const body = fn(question, profile);
+  return {
+    text: `${body}\n\n— ${DISCLAIMER} —`,
+    source: 'mock',
+    showMockBadge: typeof __DEV__ !== 'undefined' && __DEV__,
+  };
+}
+
+/** @deprecated Use chatReply */
+export async function mockChatReply(
+  question: string,
+  profile: UserProfile,
+): Promise<string> {
+  const r = await chatReply(question, profile);
+  return r.text;
 }
