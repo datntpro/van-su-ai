@@ -14,6 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { useApp } from '@/src/context/AppContext';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { colors } from '@/src/theme/colors';
 import type { UserProfile } from '@/src/lib/profile';
 
@@ -26,6 +27,7 @@ function toISODate(d: Date): string {
 
 export function OnboardingModal({ visible }: { visible: boolean }) {
   const { setProfile } = useApp();
+  const layout = useWindowLayout();
   const [birthDate, setBirthDate] = useState(new Date(1995, 0, 1));
   const [showDate, setShowDate] = useState(Platform.OS === 'ios');
   const [birthTime, setBirthTime] = useState('');
@@ -59,7 +61,17 @@ export function OnboardingModal({ visible }: { visible: boolean }) {
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              width: '100%',
+              maxWidth: layout.contentMaxWidth,
+              alignSelf: 'center',
+              paddingBottom: layout.safePaddingBottom,
+            },
+          ]}
+        >
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <Text style={styles.kicker}>Chào mừng</Text>
             <Text style={styles.title}>Van Su AI</Text>
@@ -143,7 +155,7 @@ const styles = StyleSheet.create({
     borderColor: colors.purple,
     borderWidth: 1,
   },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: 40, width: '100%' },
   kicker: { color: colors.gold, fontSize: 13, fontWeight: '600', letterSpacing: 1 },
   title: { color: colors.text, fontSize: 28, fontWeight: '800', marginTop: 4 },
   sub: { color: colors.textMuted, marginTop: 8, marginBottom: 16, lineHeight: 20 },

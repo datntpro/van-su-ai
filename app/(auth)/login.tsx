@@ -3,7 +3,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,12 +10,15 @@ import {
 } from 'react-native';
 
 import { PrimaryButton } from '@/src/components/PrimaryButton';
+import { Screen } from '@/src/components/Screen';
 import { SupabaseBanner } from '@/src/components/SupabaseBanner';
 import { useAuth } from '@/src/context/AuthContext';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { colors } from '@/src/theme/colors';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const layout = useWindowLayout();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -37,12 +39,14 @@ export default function LoginScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
+        <Screen
+          edges={['top', 'left', 'right', 'bottom']}
+          contentStyle={{ paddingTop: layout.safePaddingTop + 24 }}
         >
           <Text style={styles.kicker}>VAN SU AI</Text>
-          <Text style={styles.title}>Đăng nhập</Text>
+          <Text style={[styles.title, { fontSize: layout.isNarrow ? 28 : 32 }]}>
+            Đăng nhập
+          </Text>
           <Text style={styles.sub}>
             Vào tài khoản để đồng bộ hồ sơ sinh nhật với đám mây (khi đã cấu hình Supabase).
           </Text>
@@ -81,7 +85,7 @@ export default function LoginScreen() {
               Đăng ký
             </Link>
           </Text>
-        </ScrollView>
+        </Screen>
       </KeyboardAvoidingView>
     </View>
   );
@@ -89,7 +93,6 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 24, paddingTop: 64 },
   kicker: {
     color: colors.gold,
     letterSpacing: 2,
@@ -98,7 +101,6 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 32,
     fontWeight: '800',
     marginTop: 8,
   },
@@ -123,6 +125,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: colors.text,
     fontSize: 16,
+    width: '100%',
   },
   error: { color: colors.danger, marginTop: 12 },
   footer: {

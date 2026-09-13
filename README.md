@@ -111,3 +111,54 @@ docs/PILOT-CHECKLIST.md
 ## Tech
 
 Expo SDK 57 · Expo Router · Supabase Auth + RLS · AsyncStorage · Jest
+
+## Responsive UI (bar phones + foldables)
+
+Layout uses `useWindowDimensions` + safe-area insets (`src/hooks/useWindowLayout.ts`, `src/components/Screen.tsx`):
+
+| Width | Example | Behavior |
+|-------|---------|----------|
+| ~320px | Galaxy Fold **cover** / very narrow | Narrow gutters (12), smaller titles, single column, chips ~50% width |
+| ~360–480 | Typical bar phone | Default gutters (16), single column, content fluid |
+| ≥700px | Fold **open** / large | Centered column max ~560–640, optional **2-column** on Hôm nay (summary + giờ hoàng đạo) |
+
+Rules:
+- Prefer **flex + %** — avoid hard-coded page widths that break on hinge resize
+- Sheets (onboarding / paywall) use `maxWidth` + `alignSelf: 'center'`
+- Tab bar / composer respect bottom safe area
+
+### Manual QA widths
+
+Jest covers `computeWindowLayout` for 320 / 360 / 720 / 900 (`__tests__/layout.test.ts`). On device or Expo web, resize or use Fold open/cover:
+
+```bash
+npm test -- layout.test.ts
+```
+
+## Android APK (pilot / debug)
+
+Debug APK is enough for dogfood — **no production keystore required**.
+
+```bash
+# 1) Env placeholders (Supabase can be filled later)
+cp .env.example .env
+
+# 2) Native project
+npx expo prebuild -p android --no-install
+
+# 3) Assemble debug
+cd android && ./gradlew assembleDebug
+
+# Artifact typically:
+# android/app/build/outputs/apk/debug/app-debug.apk
+# Copied for convenience to: van-su-ai-debug.apk (repo root) when built on CI/box
+```
+
+Install on a device:
+
+```bash
+adb install -r van-su-ai-debug.apk
+# or copy the APK to the phone and open it (enable Install unknown apps)
+```
+
+EAS alternative (if logged in): `eas build -p android --profile preview --local`

@@ -44,3 +44,7 @@ yarn-error.*
 .env.*
 !.env.example
 .claude/
+
+# Pilot APK artifacts (keep locally)
+*.apk
+!docs/**

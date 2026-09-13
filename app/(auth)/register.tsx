@@ -4,7 +4,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,13 +11,16 @@ import {
 } from 'react-native';
 
 import { PrimaryButton } from '@/src/components/PrimaryButton';
+import { Screen } from '@/src/components/Screen';
 import { SupabaseBanner } from '@/src/components/SupabaseBanner';
 import { useAuth } from '@/src/context/AuthContext';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { colors } from '@/src/theme/colors';
 
 export default function RegisterScreen() {
   const { signUp, supabaseConfigured } = useAuth();
   const router = useRouter();
+  const layout = useWindowLayout();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -46,7 +48,6 @@ export default function RegisterScreen() {
       );
       return;
     }
-    // Session created immediately (confirm email off)
     if (supabaseConfigured) {
       Alert.alert(
         'Đăng ký thành công',
@@ -62,12 +63,14 @@ export default function RegisterScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
+        <Screen
+          edges={['top', 'left', 'right', 'bottom']}
+          contentStyle={{ paddingTop: layout.safePaddingTop + 24 }}
         >
           <Text style={styles.kicker}>VAN SU AI</Text>
-          <Text style={styles.title}>Đăng ký</Text>
+          <Text style={[styles.title, { fontSize: layout.isNarrow ? 28 : 32 }]}>
+            Đăng ký
+          </Text>
           <Text style={styles.sub}>
             {supabaseConfigured
               ? 'Tạo tài khoản email. Sau onboarding ngày sinh bạn nhận Trial Pro 7 ngày (một lần).'
@@ -131,7 +134,7 @@ export default function RegisterScreen() {
               Đăng nhập
             </Link>
           </Text>
-        </ScrollView>
+        </Screen>
       </KeyboardAvoidingView>
     </View>
   );
@@ -139,7 +142,6 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 24, paddingTop: 64 },
   kicker: {
     color: colors.gold,
     letterSpacing: 2,
@@ -148,7 +150,6 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 32,
     fontWeight: '800',
     marginTop: 8,
   },
@@ -173,6 +174,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: colors.text,
     fontSize: 16,
+    width: '100%',
   },
   error: { color: colors.danger, marginTop: 12 },
   legal: {

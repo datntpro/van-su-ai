@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import {
   Alert,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,13 +14,16 @@ import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
+import { Screen } from '@/src/components/Screen';
 import { useEffectivePro } from '@/src/context/AppContext';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { mockFaceAnalysis } from '@/src/lib/face-analysis';
 import { canUseFace, consumeFace, FREE_LIMITS } from '@/src/lib/limits';
 import { colors } from '@/src/theme/colors';
 
 export default function TuongSoScreen() {
   const { effectivePro } = useEffectivePro();
+  const layout = useWindowLayout();
   const [uri, setUri] = useState<string | null>(null);
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,8 +77,8 @@ export default function TuongSoScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Tướng số AI</Text>
+    <Screen contentStyle={styles.content}>
+      <Text style={[styles.title, { fontSize: layout.titleSize }]}>Tướng số AI</Text>
       <Text style={styles.sub}>
         {effectivePro
           ? 'Pro / Trial · Không giới hạn'
@@ -122,18 +124,18 @@ export default function TuongSoScreen() {
         remaining={remaining ?? 0}
         onClose={() => setPaywall(false)}
       />
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16 },
-  title: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  content: { paddingTop: 8 },
+  title: { color: colors.text, fontWeight: '800' },
   sub: { color: colors.textMuted, marginBottom: 16, marginTop: 4 },
   preview: {
     width: '100%',
-    height: 280,
+    aspectRatio: 3 / 4,
+    maxHeight: 360,
     borderRadius: 16,
     marginTop: 16,
     borderWidth: 1,

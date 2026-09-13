@@ -17,7 +17,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.vansu.ai",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",
@@ -38,7 +41,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Cho phép Van Su AI chọn ảnh để phân tích tướng số (giải trí)."
+          "photosPermission": "Cho ph\u00e9p Van Su AI ch\u1ecdn \u1ea3nh \u0111\u1ec3 ph\u00e2n t\u00edch t\u01b0\u1edbng s\u1ed1 (gi\u1ea3i tr\u00ed)."
         }
       ]
     ],

@@ -10,14 +10,17 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
+import { ContentColumn } from '@/src/components/Screen';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { MockAiBadge } from '@/src/components/MockAiBadge';
 import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { TrialErrorBanner } from '@/src/components/TrialErrorBanner';
 import { useApp, useEffectivePro } from '@/src/context/AppContext';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { useAuth } from '@/src/context/AuthContext';
 import { horoscopeIntakeTurn } from '@/src/lib/horoscopeConversation';
 import {
@@ -49,6 +52,8 @@ export default function TuViScreen() {
   const { profile, traits, patchTraits, setProfile } = useApp();
   const { effectivePro } = useEffectivePro();
   const { user, isDemoAuth } = useAuth();
+  const layout = useWindowLayout();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<TuViMessage[]>([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -231,14 +236,17 @@ export default function TuViScreen() {
   const known = profile ? traitsSummaryLines(profile.birthTime, traits) : [];
   const started = messages.length > 1;
 
+  const bubbleMax = layout.isWide ? '75%' : layout.isNarrow ? '92%' : '88%';
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
     >
+      <ContentColumn includeHorizontalSafe>
       <View style={styles.header}>
-        <Text style={styles.title}>Tử vi hôm nay</Text>
+        <Text style={[styles.title, { fontSize: layout.titleSize }]}>Tử vi hôm nay</Text>
         <Text style={styles.sub}>
           {effectivePro
             ? 'Pro / Trial · Không giới hạn luận giải'
@@ -264,6 +272,7 @@ export default function TuViScreen() {
           <View
             style={[
               styles.bubble,
+              { maxWidth: bubbleMax },
               item.role === 'user' ? styles.user : styles.assistant,
             ]}
           >
@@ -307,7 +316,7 @@ export default function TuViScreen() {
         </View>
       )}
 
-      <View style={styles.composer}>
+      <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TextInput
           style={styles.input}
           placeholder={
@@ -325,14 +334,15 @@ export default function TuViScreen() {
           onPress={send}
           loading={loading}
           disabled={!started}
-          style={{ paddingHorizontal: 16, paddingVertical: 12 }}
+          style={{ paddingHorizontal: layout.isNarrow ? 12 : 16, paddingVertical: 12 }}
         />
       </View>
 
       {!effectivePro ? <AdPlaceholder placement="banner_home" /> : null}
-      <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+      <View style={{ paddingBottom: 8 }}>
         <DisclaimerBanner />
       </View>
+      </ContentColumn>
 
       <PaywallSheet
         visible={paywall}
@@ -346,13 +356,12 @@ export default function TuViScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 16, paddingTop: 16 },
-  title: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  header: { paddingTop: 8 },
+  title: { color: colors.text, fontWeight: '800' },
   sub: { color: colors.textMuted, marginTop: 4, marginBottom: 8 },
   known: { color: colors.goldSoft, fontSize: 12, marginBottom: 8, lineHeight: 18 },
-  list: { padding: 16, paddingBottom: 8 },
+  list: { paddingVertical: 8, paddingBottom: 8, flexGrow: 1 },
   bubble: {
-    maxWidth: '88%',
     borderRadius: 16,
     padding: 12,
     marginBottom: 10,
@@ -368,18 +377,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   bubbleText: { color: colors.text, lineHeight: 20 },
-  actions: { paddingHorizontal: 16, paddingBottom: 8 },
+  actions: { paddingBottom: 8 },
   composer: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     gap: 8,
-    padding: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: 'center',
+    width: '100%',
   },
   input: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 1,

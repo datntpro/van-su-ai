@@ -4,11 +4,13 @@ import { useRouter } from 'expo-router';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { useApp } from '@/src/context/AppContext';
 import { FREE_LIMITS } from '@/src/lib/limits';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { DISCLAIMER, colors } from '@/src/theme/colors';
 
 export function TrialExpiredModal() {
   const { showTrialExpiredModal, dismissTrialExpiredModal } = useApp();
   const router = useRouter();
+  const layout = useWindowLayout();
 
   return (
     <Modal
@@ -18,7 +20,12 @@ export function TrialExpiredModal() {
       onRequestClose={dismissTrialExpiredModal}
     >
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            { width: '100%', maxWidth: layout.contentMaxWidth, alignSelf: 'center' },
+          ]}
+        >
           <Text style={styles.title}>Hết dùng thử Pro</Text>
           <Text style={styles.body}>
             Bạn đã về gói Free: {FREE_LIMITS.horoscopePerDay} tử vi/ngày,{' '}

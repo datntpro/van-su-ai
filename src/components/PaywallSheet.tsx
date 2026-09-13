@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { DISCLAIMER, colors } from '@/src/theme/colors';
 import { FREE_LIMITS } from '@/src/lib/limits';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 
 export type PaywallFeature = 'horoscope' | 'face' | 'chat';
 
@@ -37,12 +38,23 @@ export function PaywallSheet({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const layout = useWindowLayout();
   const c = COPY[feature];
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              width: '100%',
+              maxWidth: layout.contentMaxWidth,
+              alignSelf: 'center',
+              paddingBottom: Math.max(layout.safePaddingBottom, 36),
+            },
+          ]}
+        >
           <Text style={styles.kicker}>NÂNG CẤP</Text>
           <Text style={styles.title}>{c.title}</Text>
           <Text style={styles.body}>

@@ -1,7 +1,8 @@
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 
 import { Card } from '@/src/components/Card';
+import { Screen } from '@/src/components/Screen';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { SoftTrialNudge } from '@/src/components/TrialBanner';
@@ -16,6 +17,7 @@ import {
   restorePurchases,
   isRevenueCatConfigured,
 } from '@/src/services/revenuecat';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { colors, DISCLAIMER } from '@/src/theme/colors';
 
 const ROWS: { feature: string; free: string; trial: string; pro: string }[] = [
@@ -54,6 +56,7 @@ export default function ProScreen() {
   const { effectivePro, isProPaid } = useEffectivePro();
   const { signOut, user, isDemoAuth, supabaseConfigured } = useAuth();
   const showDemo = canShowDemoProToggle();
+  const layout = useWindowLayout();
 
   const statusLine = (() => {
     if (isProPaid) return 'Bạn đang dùng Pro (đã mua)';
@@ -80,9 +83,9 @@ export default function ProScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <Screen contentStyle={styles.content}>
       <SupabaseBanner />
-      <Text style={styles.title}>Pro / Cài đặt</Text>
+      <Text style={[styles.title, { fontSize: layout.titleSize }]}>Pro / Cài đặt</Text>
       <Text style={styles.sub}>{statusLine}</Text>
 
       <SoftTrialNudge onUpgrade={() => {}} />
@@ -233,14 +236,13 @@ export default function ProScreen() {
         Khi lên store: cấu hình AdMob & RevenueCat qua EAS secrets — không commit secret / service_role.
       </Text>
       <View style={{ height: 40 }} />
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16 },
-  title: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  content: { paddingTop: 8 },
+  title: { color: colors.text, fontWeight: '800' },
   sub: { color: colors.textMuted, marginBottom: 16, marginTop: 4 },
   matrixTitle: { color: colors.gold, fontWeight: '700', marginBottom: 10, fontSize: 16 },
   rowHead: { flexDirection: 'row', marginBottom: 6 },
@@ -252,6 +254,8 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     color: colors.text,
     fontSize: 11,
     textAlign: 'center',

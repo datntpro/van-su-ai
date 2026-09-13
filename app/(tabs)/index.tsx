@@ -1,13 +1,15 @@
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { Card } from '@/src/components/Card';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
+import { Screen } from '@/src/components/Screen';
 import { SoftTrialNudge, TrialBanner } from '@/src/components/TrialBanner';
 import { TrialErrorBanner } from '@/src/components/TrialErrorBanner';
 import { useApp, useEffectivePro } from '@/src/context/AppContext';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import {
   formatLunar,
   formatSolar,
@@ -21,6 +23,7 @@ export default function HomNayScreen() {
   const { profile, entitlement } = useApp();
   const { effectivePro, isProPaid } = useEffectivePro();
   const router = useRouter();
+  const layout = useWindowLayout();
   const fortune = getDayFortune(new Date());
   const qualityColor =
     fortune.dayQuality === 'tot'
@@ -35,8 +38,10 @@ export default function HomNayScreen() {
       ? `Trial · ${formatTrialCountdown(entitlement)}`
       : 'Free';
 
+  const chipMin = layout.isNarrow ? '46%' : layout.useTwoColumn ? '22%' : '30%';
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <Screen contentStyle={styles.content}>
       <TrialBanner onPressPro={() => router.push('/pro')} />
       <TrialErrorBanner />
       <SoftTrialNudge onUpgrade={() => router.push('/pro')} />
@@ -44,44 +49,62 @@ export default function HomNayScreen() {
       <Text style={styles.hello}>
         Xin chào{profile?.displayName ? `, ${profile.displayName}` : ''} 👋
       </Text>
-      <Text style={styles.brand}>Lịch vạn sự hôm nay</Text>
+      <Text style={[styles.brand, { fontSize: layout.titleSize }]}>
+        Lịch vạn sự hôm nay
+      </Text>
 
-      <Card style={styles.hero}>
-        <Text style={styles.solar}>{formatSolar(fortune.solar)}</Text>
-        <Text style={styles.lunar}>{formatLunar(fortune.lunar)}</Text>
-        <View style={[styles.badge, { borderColor: qualityColor }]}>
-          <Text style={[styles.badgeText, { color: qualityColor }]}>
-            {fortune.dayQualityLabel}
-          </Text>
-        </View>
-        <Text style={styles.canChi}>
-          Ngày {fortune.canChiDay} · Tháng {fortune.canChiMonth} · Năm {fortune.canChiYear}
-        </Text>
-        <Text style={styles.summary}>{fortune.summary}</Text>
-        {profile ? (
-          <Text style={styles.profileHint}>
-            Cung {zodiacFromBirthDate(profile.birthDate)} · Tuổi {yearAnimal(profile.birthDate)}
-            {' · '}
-            {statusLabel}
-          </Text>
-        ) : null}
-      </Card>
-
-      <Text style={styles.section}>Giờ hoàng đạo</Text>
-      <Card>
-        <View style={styles.hours}>
-          {fortune.hoangDaoHours.map((h) => (
-            <View
-              key={h.name}
-              style={[styles.hourChip, h.good ? styles.hourGood : styles.hourBad]}
-            >
-              <Text style={styles.hourName}>{h.name}</Text>
-              <Text style={styles.hourRange}>{h.range}</Text>
-              <Text style={styles.hourTag}>{h.good ? 'Hoàng đạo' : 'Hắc đạo'}</Text>
+      <View style={layout.useTwoColumn ? styles.twoCol : undefined}>
+        <View style={layout.useTwoColumn ? styles.col : undefined}>
+          <Card style={styles.hero}>
+            <Text style={styles.solar}>{formatSolar(fortune.solar)}</Text>
+            <Text style={styles.lunar}>{formatLunar(fortune.lunar)}</Text>
+            <View style={[styles.badge, { borderColor: qualityColor }]}>
+              <Text style={[styles.badgeText, { color: qualityColor }]}>
+                {fortune.dayQualityLabel}
+              </Text>
             </View>
-          ))}
+            <Text style={styles.canChi}>
+              Ngày {fortune.canChiDay} · Tháng {fortune.canChiMonth} · Năm{' '}
+              {fortune.canChiYear}
+            </Text>
+            <Text style={[styles.summary, { fontSize: layout.bodySize }]}>
+              {fortune.summary}
+            </Text>
+            {profile ? (
+              <Text style={styles.profileHint}>
+                Cung {zodiacFromBirthDate(profile.birthDate)} · Tuổi{' '}
+                {yearAnimal(profile.birthDate)}
+                {' · '}
+                {statusLabel}
+              </Text>
+            ) : null}
+          </Card>
         </View>
-      </Card>
+
+        <View style={layout.useTwoColumn ? styles.col : undefined}>
+          <Text style={styles.section}>Giờ hoàng đạo</Text>
+          <Card>
+            <View style={styles.hours}>
+              {fortune.hoangDaoHours.map((h) => (
+                <View
+                  key={h.name}
+                  style={[
+                    styles.hourChip,
+                    { width: chipMin, minWidth: layout.isNarrow ? '46%' : 96 },
+                    h.good ? styles.hourGood : styles.hourBad,
+                  ]}
+                >
+                  <Text style={styles.hourName}>{h.name}</Text>
+                  <Text style={styles.hourRange}>{h.range}</Text>
+                  <Text style={styles.hourTag}>
+                    {h.good ? 'Hoàng đạo' : 'Hắc đạo'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </View>
+      </View>
 
       <View style={{ height: 12 }} />
       <PrimaryButton title="💬 Hỏi Van Su AI" onPress={() => router.push('/chat')} />
@@ -96,15 +119,26 @@ export default function HomNayScreen() {
       <View style={{ height: 12 }} />
       <DisclaimerBanner />
       <View style={{ height: 32 }} />
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16 },
+  content: { paddingTop: 8 },
   hello: { color: colors.textMuted, fontSize: 14 },
-  brand: { color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: 12, marginTop: 2 },
+  brand: { color: colors.text, fontWeight: '800', marginBottom: 12, marginTop: 2 },
+  twoCol: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  col: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: '46%',
+    minWidth: 260,
+  },
   hero: { borderColor: colors.purple, marginBottom: 16 },
   solar: { color: colors.gold, fontSize: 22, fontWeight: '800' },
   lunar: { color: colors.purpleSoft, marginTop: 4, fontSize: 15 },
@@ -118,7 +152,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontWeight: '700', fontSize: 13 },
   canChi: { color: colors.textMuted, marginTop: 10, fontSize: 13 },
-  summary: { color: colors.text, marginTop: 10, lineHeight: 22, fontSize: 15 },
+  summary: { color: colors.text, marginTop: 10, lineHeight: 22 },
   profileHint: { color: colors.goldSoft, marginTop: 12, fontSize: 12 },
   section: {
     color: colors.gold,
@@ -128,9 +162,7 @@ const styles = StyleSheet.create({
   },
   hours: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   hourChip: {
-    width: '30%',
     flexGrow: 1,
-    minWidth: 96,
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,

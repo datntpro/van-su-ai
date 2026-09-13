@@ -9,11 +9,14 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ContentColumn } from '@/src/components/Screen';
 import { MockAiBadge } from '@/src/components/MockAiBadge';
 import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { useApp, useEffectivePro } from '@/src/context/AppContext';
+import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { ChatMessage, chatReply } from '@/src/lib/chat';
 import { canUseChat, consumeChat, FREE_LIMITS } from '@/src/lib/limits';
 import { colors, DISCLAIMER } from '@/src/theme/colors';
@@ -21,6 +24,8 @@ import { colors, DISCLAIMER } from '@/src/theme/colors';
 export default function ChatScreen() {
   const { profile, traits } = useApp();
   const { effectivePro } = useEffectivePro();
+  const layout = useWindowLayout();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -84,53 +89,66 @@ export default function ChatScreen() {
     }
   };
 
+  const bubbleMax = layout.isWide ? '75%' : layout.isNarrow ? '92%' : '88%';
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
     >
-      <Text style={styles.limit}>
-        {effectivePro
-          ? 'Pro / Trial · Chat không giới hạn'
-          : `Free · Còn ${remaining ?? '…'}/${FREE_LIMITS.chatMessages} tin hôm nay`}
-      </Text>
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.bubble,
-              item.role === 'user' ? styles.user : styles.assistant,
-            ]}
-          >
-            {item.role === 'assistant' ? (
-              <MockAiBadge show={item.showMockBadge} />
-            ) : null}
-            <Text style={styles.bubbleText}>{item.text}</Text>
-          </View>
-        )}
-      />
-      <View style={styles.composer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Nhập câu hỏi…"
-          placeholderTextColor={colors.textMuted}
-          value={input}
-          onChangeText={setInput}
-          editable={!loading}
-          onSubmitEditing={send}
-          returnKeyType="send"
+      <ContentColumn includeHorizontalSafe>
+        <Text style={styles.limit}>
+          {effectivePro
+            ? 'Pro / Trial · Chat không giới hạn'
+            : `Free · Còn ${remaining ?? '…'}/${FREE_LIMITS.chatMessages} tin hôm nay`}
+        </Text>
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          style={styles.flex}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.bubble,
+                { maxWidth: bubbleMax },
+                item.role === 'user' ? styles.user : styles.assistant,
+              ]}
+            >
+              {item.role === 'assistant' ? (
+                <MockAiBadge show={item.showMockBadge} />
+              ) : null}
+              <Text style={[styles.bubbleText, { fontSize: layout.bodySize }]}>
+                {item.text}
+              </Text>
+            </View>
+          )}
         />
-        <PrimaryButton
-          title="Gửi"
-          onPress={send}
-          loading={loading}
-          style={{ paddingHorizontal: 16, paddingVertical: 12 }}
-        />
-      </View>
+        <View
+          style={[
+            styles.composer,
+            { paddingBottom: Math.max(insets.bottom, 8) },
+          ]}
+        >
+          <TextInput
+            style={styles.input}
+            placeholder="Nhập câu hỏi…"
+            placeholderTextColor={colors.textMuted}
+            value={input}
+            onChangeText={setInput}
+            editable={!loading}
+            onSubmitEditing={send}
+            returnKeyType="send"
+          />
+          <PrimaryButton
+            title="Gửi"
+            onPress={send}
+            loading={loading}
+            style={{ paddingHorizontal: layout.isNarrow ? 12 : 16, paddingVertical: 12 }}
+          />
+        </View>
+      </ContentColumn>
 
       <PaywallSheet
         visible={paywall}
@@ -144,15 +162,15 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   limit: {
     color: colors.textMuted,
     textAlign: 'center',
     paddingVertical: 8,
     fontSize: 12,
   },
-  list: { padding: 16, paddingBottom: 8 },
+  list: { paddingVertical: 8, paddingBottom: 8, flexGrow: 1 },
   bubble: {
-    maxWidth: '88%',
     borderRadius: 16,
     padding: 12,
     marginBottom: 10,
@@ -170,15 +188,18 @@ const styles = StyleSheet.create({
   bubbleText: { color: colors.text, lineHeight: 20 },
   composer: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     gap: 8,
-    padding: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: 'center',
+    width: '100%',
   },
   input: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 1,
