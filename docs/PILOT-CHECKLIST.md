@@ -15,7 +15,15 @@
 - [ ] RPC `apply_paid_pro` **không** grant authenticated (service_role only)
 - [ ] Client `UPDATE profiles.is_pro` bị chặn (GRANT + trigger)
 - [ ] `.env`: chỉ `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` (**không** service_role)
-- [ ] Dev: có thể tắt “Confirm email” để vào app ngay; Pilot/store: bật confirm + copy messaging đã có trên Register
+- [ ] **URL Configuration** (Authentication → URL Configuration) — **bắt buộc**, không sửa được từ app code:
+  - **Site URL:** `vansuai://auth/callback` (hoặc HTTPS production sau này). **Không** để `http://localhost:3000` — confirmation email / redirect sẽ gãy trên mobile.
+  - **Redirect URLs** (allowlist), thêm:
+    - `vansuai://auth/callback`
+    - `vansuai://**`
+  - App `signUp` đã gửi `emailRedirectTo` = `Linking.createURL('auth/callback')` (scheme `vansuai` → `vansuai://auth/callback`). Deep-link handler hoàn tất session từ callback.
+- [ ] **Email provider** (Authentication → Providers → Email):
+  - **Pilot / dogfood nhanh:** **tắt Confirm email** → `signUp` trả session ngay trên device (không cần mở mail).
+  - Gần store: bật Confirm email + messaging trên Register; Site URL / Redirect URLs phải đúng như trên.
 
 ## 2. Env pilot / store
 

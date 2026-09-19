@@ -8,6 +8,12 @@ import React, {
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 
+import * as Linking from 'expo-linking';
+
+import {
+  completeAuthSessionFromUrl,
+  getAuthRedirectTo,
+} from '@/src/lib/authDeepLink';
 import {
   authErrorVi,
   getSupabase,
@@ -56,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
+    let unsubLink: (() => void) | undefined;
 
     (async () => {
       if (isSupabaseConfigured) {
@@ -72,6 +79,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         });
         unsub = () => sub.subscription.unsubscribe();
+
+        // Email confirm / magic-link deep links (detectSessionInUrl is false on RN).
+        const onUrl = ({ url }: { url: string }) => {
+          void completeAuthSessionFromUrl(url);
+        };
+        void Linking.getInitialURL().then((url) => {
+          if (url) void completeAuthSessionFromUrl(url);
+        });
+        const linkSub = Linking.addEventListener('url', onUrl);
+        unsubLink = () => linkSub.remove();
       } else {
         const local = await getJson<DemoSession | null>(DEMO_SESSION_KEY, null);
         setDemo(local);
@@ -81,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       unsub?.();
+      unsubLink?.();
     };
   }, []);
 
@@ -125,6 +143,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await sb.auth.signUp({
       email: email.trim(),
       password,
+      options: {
+        // Must match Supabase Dashboard Redirect URLs (not localhost:3000).
+        emailRedirectTo: getAuthRedirectTo(),
+      },
     });
     if (error) return { error: authErrorVi(error.message) };
     // If email confirmation is required, session may be null

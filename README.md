@@ -46,6 +46,11 @@ Chi tiết BA: `docs/BA-FEATURE-GAP.md` · Checklist pilot: `docs/PILOT-CHECKLIS
 ## Auth (Supabase)
 
 - Đăng nhập / Đăng ký email; messaging xác nhận email; `refreshSession`
+- `signUp` gửi `emailRedirectTo` → `vansuai://auth/callback` (scheme trong `app.json`); deep-link `app/auth/callback` + `AuthContext` hoàn tất session (`exchangeCodeForSession` / `setSession`)
+- **Dashboard (bắt buộc — không đổi được từ code):** Authentication → URL Configuration
+  - Site URL: `vansuai://auth/callback` (đừng để `http://localhost:3000`)
+  - Redirect URLs: `vansuai://auth/callback`, `vansuai://**`
+  - Pilot: Authentication → Providers → Email → **tắt Confirm email** để vào app ngay
 - Hồ sơ + trial fields trên `profiles` (RLS own-row; entitlement columns **read-only** cho client)
 - `user_traits` — hồ sơ AI cá nhân (giới tính, hôn nhân, nghề, quan tâm, JSONB questionnaire)
 - `horoscope_chats` — hội thoại tử vi (own-only)
@@ -65,13 +70,14 @@ Worker stub (optional): `worker/` — proxy Workers AI / OpenAI, contract JSON d
 
 ## Supabase — checklist nhanh
 
-1. Email auth bật (Confirm email: tắt khi dogfood nhanh / bật khi pilot gần store).
-2. Chạy migrations:
+1. Email auth bật (Confirm email: **tắt** khi dogfood nhanh / bật khi pilot gần store).
+2. **URL Configuration:** Site URL = `vansuai://auth/callback`; Redirect URLs thêm `vansuai://auth/callback` và `vansuai://**` (không dùng `localhost:3000` trên mobile).
+3. Chạy migrations:
    - `20260913000000_profiles.sql`
    - `20260913120000_trial_entitlement.sql` (trial columns + RPC `start_trial_if_eligible`)
    - `20260913140000_rls_entitlement_traits_chats.sql` (lock entitlement columns + `user_traits` + `horoscope_chats`)
-3. Chỉ **anon** key trong Expo — **never service_role**.
-4. Store build: `EXPO_PUBLIC_STORE_BUILD=1` + bắt buộc Supabase env (tắt demo).
+4. Chỉ **anon** key trong Expo — **never service_role**.
+5. Store build: `EXPO_PUBLIC_STORE_BUILD=1` + bắt buộc Supabase env (tắt demo).
 
 Xem đầy đủ: `docs/PILOT-CHECKLIST.md`.
 

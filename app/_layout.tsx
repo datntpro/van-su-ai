@@ -46,9 +46,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authReady) return;
     const inAuth = segments[0] === '(auth)';
-    if (!user && !inAuth) {
+    const inAuthCallback = segments[0] === 'auth'; // vansuai://auth/callback
+    if (!user && !inAuth && !inAuthCallback) {
       router.replace('/(auth)/login');
-    } else if (user && inAuth) {
+    } else if (user && (inAuth || inAuthCallback)) {
       router.replace('/(tabs)');
     }
   }, [authReady, user, segments, router]);
@@ -66,6 +67,7 @@ function RootNav() {
       <StatusBar style="light" />
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="chat"
