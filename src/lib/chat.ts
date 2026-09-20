@@ -3,7 +3,6 @@ import { zodiacFromBirthDate, yearAnimal } from './profile';
 import { getDayFortune } from './calendar';
 import { callAi, type AiResult } from './ai';
 import type { UserTraits } from './traits';
-import { DISCLAIMER } from '@/src/theme/colors';
 
 export type ChatMessage = {
   id: string;
@@ -41,7 +40,7 @@ function hash(s: string): number {
   return h;
 }
 
-/** Chat reply via pluggable AI or improved mock. Always includes disclaimer. */
+/** Chat reply via pluggable AI or improved mock. */
 export async function chatReply(
   question: string,
   profile: UserProfile,
@@ -64,7 +63,7 @@ export async function chatReply(
       ? ` (gợi từ hồ sơ: ${[traits.career, ...(traits.concerns ?? [])].filter(Boolean).join(', ')})`
       : '';
   return {
-    text: `${body}${extra}\n\n— ${DISCLAIMER} —`,
+    text: `${body}${extra}`,
     source: 'mock',
     showMockBadge: typeof __DEV__ !== 'undefined' && __DEV__,
   };

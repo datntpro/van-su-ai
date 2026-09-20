@@ -110,9 +110,10 @@ export function ageFromBirthDate(iso: string, on: Date = new Date()): number {
 }
 
 function relationLabel(r: ChiRelation, animal: string, dayChi: string): string {
-  if (r === 'hop') return `Tuổi ${animal} hợp ngày ${dayChi}`;
-  if (r === 'xung') return `Tuổi ${animal} xung ngày ${dayChi}`;
-  return `Tuổi ${animal} · ngày ${dayChi}`;
+  // "Tuổi X" = con giáp năm sinh của user — không phải năm âm lịch của ngày đang xem
+  if (r === 'hop') return `Tuổi ${animal} (năm sinh) hợp ngày ${dayChi}`;
+  if (r === 'xung') return `Tuổi ${animal} (năm sinh) xung ngày ${dayChi}`;
+  return `Tuổi ${animal} (năm sinh) · ngày ${dayChi}`;
 }
 
 function traitSnippet(
@@ -170,7 +171,7 @@ function buildPersonalizedSummary(opts: {
     }
   }
 
-  const summary = `${core}${traitBit} (giải trí).`;
+  const summary = `${core}${traitBit}.`;
   const widgetSummary =
     opts.relation === 'hop'
       ? `${opts.animal} hợp ${opts.dayChi} · ${ageBit}`

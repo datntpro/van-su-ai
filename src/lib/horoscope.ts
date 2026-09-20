@@ -3,7 +3,6 @@ import { yearAnimal, zodiacFromBirthDate } from './profile';
 import { getDayFortune } from './calendar';
 import { callAi, type AiResult } from './ai';
 import { EMPTY_TRAITS, traitsSummaryLines, type UserTraits } from './traits';
-import { DISCLAIMER } from '@/src/theme/colors';
 
 /**
  * Generate Vietnamese daily horoscope (personalized when traits present).
@@ -89,7 +88,7 @@ export async function generateDailyHoroscope(
       .map((h) => h.name)
       .join(', ')} nếu cần xuất hành.`,
     ``,
-    `— Van Su AI · ${DISCLAIMER} —`,
+    `— Van Su AI —`,
   ]
     .filter((line, i, arr) => !(line === '' && arr[i - 1] === ''))
     .join('\n');

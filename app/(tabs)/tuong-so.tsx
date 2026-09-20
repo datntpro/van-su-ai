@@ -11,7 +11,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { Card } from '@/src/components/Card';
-import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { TermsLink } from '@/src/components/DisclaimerBanner';
 import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { Screen } from '@/src/components/Screen';
@@ -103,7 +103,7 @@ export default function TuongSoScreen() {
       ) : (
         <Card style={{ marginTop: 16 }}>
           <Text style={styles.placeholder}>
-            Chọn ảnh chân dung rõ nét. Không dùng ảnh trẻ em. Kết quả chỉ để giải trí.
+            Chọn ảnh chân dung rõ nét. Không dùng ảnh trẻ em.
           </Text>
         </Card>
       )}
@@ -115,7 +115,7 @@ export default function TuongSoScreen() {
         </>
       ) : null}
       <View style={{ height: 12 }} />
-      <DisclaimerBanner />
+      <TermsLink />
       <View style={{ height: 32 }} />
 
       <PaywallSheet

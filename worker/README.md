@@ -33,7 +33,7 @@ Header: `Authorization: Bearer <shared secret>` = app `EXPO_PUBLIC_AI_API_KEY`.
 |------|------|
 | OpenAI-compatible | `OPENAI_API_KEY` set (`AI_PROVIDER=openai` or `auto`) |
 | Workers AI | `AI` binding + no OpenAI key, or `AI_PROVIDER=workers` |
-| Stub local | Neither upstream works — still returns Vietnamese entertainment text + disclaimer |
+| Stub local | Neither upstream works — still returns Vietnamese entertainment text (no forced disclaimer footer) |
 
 Prompts are Vietnamese entertainment-horoscope (tử vi / lịch vạn sự). Worker strips accidental `service_role` fields from JSON body.
 

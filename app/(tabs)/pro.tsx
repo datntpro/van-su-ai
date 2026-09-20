@@ -4,7 +4,7 @@ import { Link } from 'expo-router';
 
 import { Card } from '@/src/components/Card';
 import { Screen } from '@/src/components/Screen';
-import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { TermsLink } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { SoftTrialNudge } from '@/src/components/TrialBanner';
 import { useApp, useEffectivePro } from '@/src/context/AppContext';
@@ -21,7 +21,7 @@ import {
   type RcPackageInfo,
 } from '@/src/services/revenuecat';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
-import { colors, DISCLAIMER } from '@/src/theme/colors';
+import { colors } from '@/src/theme/colors';
 
 const ROWS: { feature: string; free: string; trial: string; pro: string }[] = [
   { feature: 'Lịch vạn sự hôm nay', free: '✓', trial: '✓', pro: '✓' },
@@ -271,8 +271,7 @@ export default function ProScreen() {
       </Card>
 
       <View style={{ height: 14 }} />
-      <DisclaimerBanner />
-      <Text style={styles.legal}>{DISCLAIMER}</Text>
+      <TermsLink label="Điều khoản & tính chất giải trí" />
       <Text style={styles.legal}>
         Khi lên store: cấu hình AdMob & RevenueCat qua EAS secrets — không commit secret / service_role.
       </Text>

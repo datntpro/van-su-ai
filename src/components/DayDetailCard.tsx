@@ -31,7 +31,7 @@ export function DayDetailCard({ fortune, bodySize = 15 }: Props) {
         </Text>
       </View>
       <Text style={styles.canChi}>
-        Ngày {fortune.canChiDay} · Tháng {fortune.canChiMonth} · Năm{' '}
+        Can chi ngày {fortune.canChiDay} · tháng {fortune.canChiMonth} · năm âm{' '}
         {fortune.canChiYear}
       </Text>
       {fortune.personalized ? (

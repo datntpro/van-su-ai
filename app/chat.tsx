@@ -19,7 +19,7 @@ import { useApp, useEffectivePro } from '@/src/context/AppContext';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { ChatMessage, chatReply } from '@/src/lib/chat';
 import { canUseChat, consumeChat, FREE_LIMITS } from '@/src/lib/limits';
-import { colors, DISCLAIMER } from '@/src/theme/colors';
+import { colors } from '@/src/theme/colors';
 
 export default function ChatScreen() {
   const { profile, traits } = useApp();
@@ -30,7 +30,7 @@ export default function ChatScreen() {
     {
       id: 'welcome',
       role: 'assistant',
-      text: `Xin chào! Mình là Van Su AI. Hỏi gì về ngày hôm nay cũng được — nhớ đây chỉ là giải trí nhé.\n\n— ${DISCLAIMER} —`,
+      text: `Xin chào! Mình là Van Su AI. Hỏi gì về ngày hôm nay, lịch vạn sự hay tử vi cũng được.`,
       createdAt: new Date().toISOString(),
     },
   ]);

@@ -78,6 +78,14 @@ function RootNav() {
           }}
         />
         <Stack.Screen
+          name="la-so"
+          options={{
+            title: 'Lá số tử vi',
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.gold,
+          }}
+        />
+        <Stack.Screen
           name="chat"
           options={{
             presentation: 'modal',

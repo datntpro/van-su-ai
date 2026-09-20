@@ -12,7 +12,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { PrimaryButton } from '@/src/components/PrimaryButton';
-import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { TermsLink } from '@/src/components/DisclaimerBanner';
 import { useApp } from '@/src/context/AppContext';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { colors } from '@/src/theme/colors';
@@ -76,7 +76,7 @@ export function OnboardingModal({ visible }: { visible: boolean }) {
             <Text style={styles.kicker}>Chào mừng</Text>
             <Text style={styles.title}>Van Su AI</Text>
             <Text style={styles.sub}>
-              Nhập thông tin để nhận lịch vạn sự & tử vi cá nhân hóa (giải trí). Tài khoản
+              Nhập thông tin để nhận lịch vạn sự & tử vi cá nhân hóa. Tài khoản
               cloud sẽ nhận Trial Pro 7 ngày sau khi lưu ngày sinh (một lần / tài khoản).
             </Text>
 
@@ -131,7 +131,7 @@ export function OnboardingModal({ visible }: { visible: boolean }) {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <View style={{ height: 12 }} />
-            <DisclaimerBanner />
+            <TermsLink />
             <View style={{ height: 16 }} />
             <PrimaryButton title="Bắt đầu" onPress={onSave} loading={saving} variant="gold" />
           </ScrollView>
