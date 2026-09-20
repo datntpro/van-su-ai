@@ -1,36 +1,81 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { Card } from '@/src/components/Card';
+import { DayDetailCard } from '@/src/components/DayDetailCard';
 import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { MonthCalendar } from '@/src/components/MonthCalendar';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { Screen } from '@/src/components/Screen';
 import { SoftTrialNudge, TrialBanner } from '@/src/components/TrialBanner';
 import { TrialErrorBanner } from '@/src/components/TrialErrorBanner';
 import { useApp, useEffectivePro } from '@/src/context/AppContext';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
-import {
-  formatLunar,
-  formatSolar,
-  getDayFortune,
-} from '@/src/lib/calendar';
 import { formatTrialCountdown } from '@/src/lib/entitlement';
-import { zodiacFromBirthDate, yearAnimal } from '@/src/lib/profile';
+import {
+  getPersonalizedDayFortune,
+  type MonthCell,
+} from '@/src/lib/personalizedFortune';
+import { syncHomeWidget } from '@/src/widgets/syncHomeWidget';
 import { colors } from '@/src/theme/colors';
 
 export default function HomNayScreen() {
-  const { profile, entitlement } = useApp();
+  const { profile, traits, entitlement } = useApp();
   const { effectivePro, isProPaid } = useEffectivePro();
   const router = useRouter();
   const layout = useWindowLayout();
-  const fortune = getDayFortune(new Date());
-  const qualityColor =
-    fortune.dayQuality === 'tot'
-      ? colors.success
-      : fortune.dayQuality === 'xau'
-        ? colors.danger
-        : colors.warning;
+
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
+  const [selected, setSelected] = useState({
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+  });
+
+  useEffect(() => {
+    const applyDayUrl = (url: string | null) => {
+      if (!url) return;
+      const m = url.match(/day\/(\d{4})-(\d{2})-(\d{2})/i);
+      if (!m) return;
+      const y = Number(m[1]);
+      const mo = Number(m[2]);
+      const d = Number(m[3]);
+      if (!y || !mo || !d) return;
+      setSelected({ year: y, month: mo, day: d });
+      setViewYear(y);
+      setViewMonth(mo);
+    };
+    void Linking.getInitialURL().then(applyDayUrl);
+    const sub = Linking.addEventListener('url', ({ url }) => applyDayUrl(url));
+    return () => sub.remove();
+  }, []);
+
+  const person = useMemo(
+    () =>
+      profile?.birthDate
+        ? {
+            birthDate: profile.birthDate,
+            displayName: profile.displayName,
+            traits,
+          }
+        : null,
+    [profile, traits],
+  );
+
+  const fortune = useMemo(() => {
+    const d = new Date(selected.year, selected.month - 1, selected.day);
+    return getPersonalizedDayFortune(d, person);
+  }, [selected, person]);
+
+  // Best-effort widget refresh when profile/fortune changes (no-op on iOS/web/Expo Go)
+  useEffect(() => {
+    void syncHomeWidget(fortune);
+  }, [fortune]);
 
   const statusLabel = isProPaid
     ? 'Pro ✨'
@@ -39,6 +84,18 @@ export default function HomNayScreen() {
       : 'Free';
 
   const chipMin = layout.isNarrow ? '46%' : layout.useTwoColumn ? '22%' : '30%';
+
+  const onSelectDay = (cell: MonthCell) => {
+    setSelected({
+      year: cell.solarYear,
+      month: cell.solarMonth,
+      day: cell.solarDay,
+    });
+    if (cell.solarMonth !== viewMonth || cell.solarYear !== viewYear) {
+      setViewYear(cell.solarYear);
+      setViewMonth(cell.solarMonth);
+    }
+  };
 
   return (
     <Screen contentStyle={styles.content}>
@@ -50,35 +107,29 @@ export default function HomNayScreen() {
         Xin chào{profile?.displayName ? `, ${profile.displayName}` : ''} 👋
       </Text>
       <Text style={[styles.brand, { fontSize: layout.titleSize }]}>
-        Lịch vạn sự hôm nay
+        Lịch vạn sự
       </Text>
+      <Text style={styles.sub}>
+        Lưới tháng dương + âm · chạm ngày để xem chi tiết
+        {fortune.personalized ? ' · đã cá nhân hóa' : ''}
+        {' · '}
+        {statusLabel}
+      </Text>
+
+      <MonthCalendar
+        year={viewYear}
+        month={viewMonth}
+        selected={selected}
+        onChangeMonth={(y, m) => {
+          setViewYear(y);
+          setViewMonth(m);
+        }}
+        onSelectDay={onSelectDay}
+      />
 
       <View style={layout.useTwoColumn ? styles.twoCol : undefined}>
         <View style={layout.useTwoColumn ? styles.col : undefined}>
-          <Card style={styles.hero}>
-            <Text style={styles.solar}>{formatSolar(fortune.solar)}</Text>
-            <Text style={styles.lunar}>{formatLunar(fortune.lunar)}</Text>
-            <View style={[styles.badge, { borderColor: qualityColor }]}>
-              <Text style={[styles.badgeText, { color: qualityColor }]}>
-                {fortune.dayQualityLabel}
-              </Text>
-            </View>
-            <Text style={styles.canChi}>
-              Ngày {fortune.canChiDay} · Tháng {fortune.canChiMonth} · Năm{' '}
-              {fortune.canChiYear}
-            </Text>
-            <Text style={[styles.summary, { fontSize: layout.bodySize }]}>
-              {fortune.summary}
-            </Text>
-            {profile ? (
-              <Text style={styles.profileHint}>
-                Cung {zodiacFromBirthDate(profile.birthDate)} · Tuổi{' '}
-                {yearAnimal(profile.birthDate)}
-                {' · '}
-                {statusLabel}
-              </Text>
-            ) : null}
-          </Card>
+          <DayDetailCard fortune={fortune} bodySize={layout.bodySize} />
         </View>
 
         <View style={layout.useTwoColumn ? styles.col : undefined}>
@@ -126,7 +177,8 @@ export default function HomNayScreen() {
 const styles = StyleSheet.create({
   content: { paddingTop: 8 },
   hello: { color: colors.textMuted, fontSize: 14 },
-  brand: { color: colors.text, fontWeight: '800', marginBottom: 12, marginTop: 2 },
+  brand: { color: colors.text, fontWeight: '800', marginBottom: 2, marginTop: 2 },
+  sub: { color: colors.textMuted, fontSize: 12, marginBottom: 12 },
   twoCol: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -139,21 +191,6 @@ const styles = StyleSheet.create({
     flexBasis: '46%',
     minWidth: 260,
   },
-  hero: { borderColor: colors.purple, marginBottom: 16 },
-  solar: { color: colors.gold, fontSize: 22, fontWeight: '800' },
-  lunar: { color: colors.purpleSoft, marginTop: 4, fontSize: 15 },
-  badge: {
-    alignSelf: 'flex-start',
-    marginTop: 12,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  badgeText: { fontWeight: '700', fontSize: 13 },
-  canChi: { color: colors.textMuted, marginTop: 10, fontSize: 13 },
-  summary: { color: colors.text, marginTop: 10, lineHeight: 22 },
-  profileHint: { color: colors.goldSoft, marginTop: 12, fontSize: 12 },
   section: {
     color: colors.gold,
     fontWeight: '700',

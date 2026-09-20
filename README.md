@@ -100,7 +100,9 @@ EXPO_PUBLIC_REVENUECAT_API_KEY=
 
 ```
 app/(auth)/            # Login / Register (+ legal links)
-app/(tabs)/            # Hôm nay, Tử vi, Tướng số, Pro
+app/(tabs)/            # Hôm nay (lịch tháng), Tử vi, Tướng số, Pro
+src/widgets/           # Android home widget (VanSuDay)
+src/lib/personalizedFortune.ts
 app/legal/             # Privacy + Terms (VI)
 app/chat.tsx           # Chat AI modal
 src/lib/entitlement.ts # effectivePro / trial math
@@ -112,6 +114,23 @@ src/services/revenuecat.ts  # configure + syncPaidProFromCustomerInfo hooks
 worker/                # Optional CF Worker AI proxy
 supabase/migrations/   # profiles + trial + RLS lock + traits/chats
 docs/PILOT-CHECKLIST.md
+```
+
+
+## Lịch tháng + cá nhân hóa (P0)
+
+- Tab **Hôm nay**: lưới tháng dương + âm, điều hướng tháng/năm, chạm ngày → chi tiết + giờ hoàng đạo
+- Nếu có `birthDate` (onboarding): tóm tắt **cá nhân hóa** (tuổi con giáp vs chi ngày, tuổi, traits nếu có) — `src/lib/personalizedFortune.ts`
+- Test: `npm test -- personalizedFortune.test.ts`
+
+## Widget màn hình chính
+
+Android (ưu tiên) qua `react-native-android-widget` — **cần native rebuild**, không chạy Expo Go.  
+Chi tiết: [`docs/WIDGETS.md`](docs/WIDGETS.md).
+
+```bash
+npx expo prebuild -p android --clean
+cd android && ./gradlew assembleDebug
 ```
 
 ## Tech
