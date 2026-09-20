@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Card } from '@/src/components/Card';
-import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { TermsLink } from '@/src/components/DisclaimerBanner';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { Screen } from '@/src/components/Screen';
 import { useApp } from '@/src/context/AppContext';
@@ -15,7 +15,7 @@ import {
   type EventTypeId,
   type GoodDayCandidate,
 } from '@/src/lib/goodDays';
-import { colors, DISCLAIMER } from '@/src/theme/colors';
+import { colors } from '@/src/theme/colors';
 
 const RANGES: { days: number; label: string }[] = [
   { days: 30, label: '30 ngày' },
@@ -164,11 +164,7 @@ export default function ChonNgayTotScreen() {
       ) : null}
 
       <View style={{ height: 12 }} />
-      <DisclaimerBanner />
-      <Text style={styles.legal}>
-        ⚠ {DISCLAIMER}. Gợi ý ngày dựa trên heuristic lịch âm/can chi demo — không thay thế
-        thầy lịch / chuyên gia.
-      </Text>
+      <TermsLink />
       <View style={{ height: 40 }} />
     </Screen>
   );

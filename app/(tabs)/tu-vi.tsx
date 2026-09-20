@@ -9,12 +9,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { ContentColumn } from '@/src/components/Screen';
-import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { TermsLink } from '@/src/components/DisclaimerBanner';
 import { MockAiBadge } from '@/src/components/MockAiBadge';
 import { PaywallSheet } from '@/src/components/PaywallSheet';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
@@ -30,7 +30,7 @@ import {
 } from '@/src/lib/horoscopeChatStore';
 import { canUseHoroscope, consumeHoroscope, FREE_LIMITS } from '@/src/lib/limits';
 import { traitsSummaryLines, type IntakeField } from '@/src/lib/traits';
-import { colors, DISCLAIMER } from '@/src/theme/colors';
+import { colors } from '@/src/theme/colors';
 
 type TuViMessage = {
   id: string;
@@ -44,12 +44,13 @@ type TuViMessage = {
 const WELCOME: TuViMessage = {
   id: 'welcome',
   role: 'assistant',
-  text: `Mình sẽ hỏi vài câu để luận giải tử vi sát với bạn hơn — giờ sinh, giới tính, tình cảm, công việc, điều đang quan tâm, mục tiêu năm nay. Bạn trả lời từng câu, hoặc bỏ qua để xem ngay.\n\n— ${DISCLAIMER} —`,
+  text: `Mình sẽ hỏi vài câu để luận giải tử vi sát với bạn hơn — giờ sinh, giới tính, tình cảm, công việc, điều đang quan tâm, mục tiêu năm nay. Bạn trả lời từng câu, hoặc bỏ qua để xem ngay. Có thể mở “Xem lá số” để xem tóm tắt can chi lúc sinh.`,
   createdAt: new Date().toISOString(),
 };
 
 export default function TuViScreen() {
   const { profile, traits, patchTraits, setProfile } = useApp();
+  const router = useRouter();
   const { effectivePro } = useEffectivePro();
   const { user, isDemoAuth } = useAuth();
   const layout = useWindowLayout();
@@ -262,6 +263,16 @@ export default function TuViScreen() {
         )}
       </View>
 
+      {profile?.birthDate ? (
+        <View style={{ paddingBottom: 8 }}>
+          <PrimaryButton
+            title="📜 Xem lá số"
+            variant="gold"
+            onPress={() => router.push('/la-so')}
+          />
+        </View>
+      ) : null}
+
       <FlatList
         ref={listRef}
         data={messages}
@@ -339,8 +350,8 @@ export default function TuViScreen() {
       </View>
 
       {!effectivePro ? <AdPlaceholder placement="banner_home" /> : null}
-      <View style={{ paddingBottom: 8 }}>
-        <DisclaimerBanner />
+      <View style={{ paddingBottom: 8, paddingTop: 4 }}>
+        <TermsLink />
       </View>
       </ContentColumn>
 

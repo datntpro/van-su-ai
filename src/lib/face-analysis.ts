@@ -17,9 +17,9 @@ export async function mockFaceAnalysis(_uri: string): Promise<string> {
     '',
     'Miệng & cằm: Đường cười mềm mại kết hợp cằm vững cho thấy bạn dễ được tin tưởng, phù hợp vai trò kết nối hoặc hỗ trợ nhóm.',
     '',
-    'Lời khuyên giải trí: Giữ thói quen ngủ đúng giờ và tiếp xúc ánh sáng ban ngày — “khí sắc” sẽ phản ánh rõ trên khuôn mặt.',
+    'Lời khuyên: Giữ thói quen ngủ đúng giờ và tiếp xúc ánh sáng ban ngày — “khí sắc” sẽ phản ánh rõ trên khuôn mặt.',
     '',
-    '— Van Su AI · Chỉ mang tính giải trí, không phải lời khuyên chuyên môn —',
+    '— Van Su AI —',
   ];
 
   return paragraphs.join('\n');

@@ -3,7 +3,7 @@ import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { PrimaryButton } from '@/src/components/PrimaryButton';
-import { DISCLAIMER, colors } from '@/src/theme/colors';
+import { colors } from '@/src/theme/colors';
 import { FREE_LIMITS } from '@/src/lib/limits';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import {
@@ -130,7 +130,14 @@ export function PaywallSheet({
             </>
           )}
 
-          <Text style={styles.disclaimer}>⚠ {DISCLAIMER}</Text>
+          <PrimaryButton
+            title="Điều khoản"
+            variant="ghost"
+            onPress={() => {
+              onClose();
+              router.push('/legal/terms');
+            }}
+          />
           <View style={{ height: 8 }} />
           <PrimaryButton title="Để sau" variant="ghost" onPress={onClose} />
         </View>

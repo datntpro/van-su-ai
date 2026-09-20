@@ -7,14 +7,11 @@
  * Vars: AI_PROVIDER, OPENAI_MODEL, OPENAI_BASE_URL, WORKERS_AI_MODEL
  */
 
-const DISCLAIMER =
-  'Chỉ mang tính giải trí, không phải lời khuyên chuyên môn';
-
 const BASE_SYSTEM = `Bạn là Van Su AI — trợ lý tử vi / lịch vạn sự / giải trí tiếng Việt.
 Luôn trả lời bằng tiếng Việt, ngắn gọn, thân thiện, mang tính giải trí.
 Không khẳng định tuyệt đối. Không tư vấn y tế / tài chính / pháp lý chuyên môn.
 Không bao giờ yêu cầu hoặc tiết lộ service_role / secret / API key.
-Cuối câu trả lời có thể nhắc: chỉ mang tính giải trí.`;
+Không cần lặp disclaimer ở cuối mỗi câu trả lời.`;
 
 const INTAKE_SYSTEM = `${BASE_SYSTEM}
 
@@ -32,7 +29,7 @@ Viết tử vi / luận ngày kiểu giải trí lịch vạn sự Việt Nam: c
 
 const CHAT_SYSTEM = `${BASE_SYSTEM}
 
-Trả lời câu hỏi về lịch vạn sự, tử vi giải trí, chọn ngày, giờ hoàng đạo — tiếng Việt, rõ ràng, có disclaimer giải trí.`;
+Trả lời câu hỏi về lịch vạn sự, tử vi giải trí, chọn ngày, giờ hoàng đạo — tiếng Việt, rõ ràng.`;
 
 export default {
   async fetch(request, env) {
@@ -132,9 +129,8 @@ export default {
     if (!text) {
       text = stubReply(type, body);
       model = 'stub-local';
-    } else if (!text.includes('giải trí')) {
-      text = `${text}\n\n— ${DISCLAIMER} —`;
     }
+    // Soft entertainment guidance stays in system prompts only — do not force disclaimer footer.
 
     const parsed = tryParseStructured(text);
     const readyForReading =
@@ -250,7 +246,7 @@ function stubReply(type, body) {
         : [
             'Van Su AI: ngày mang năng lượng ổn định theo lịch vạn sự giải trí — nên xuất hành nhẹ, tránh quyết định lớn nếu chưa sẵn sàng.',
           ];
-  return [...lines, '', `— ${DISCLAIMER} —`].join('\n');
+  return lines.join('\n');
 }
 
 function tryParseStructured(text) {

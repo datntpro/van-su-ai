@@ -6,7 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AdPlaceholder } from '@/src/components/AdPlaceholder';
 import { Card } from '@/src/components/Card';
 import { DayDetailCard } from '@/src/components/DayDetailCard';
-import { DisclaimerBanner } from '@/src/components/DisclaimerBanner';
+import { TermsLink } from '@/src/components/DisclaimerBanner';
 import { MonthCalendar } from '@/src/components/MonthCalendar';
 import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { Screen } from '@/src/components/Screen';
@@ -189,7 +189,7 @@ export default function HomNayScreen() {
       ) : null}
 
       <View style={{ height: 12 }} />
-      <DisclaimerBanner />
+      <TermsLink />
       <View style={{ height: 32 }} />
     </Screen>
   );

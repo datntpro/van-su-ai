@@ -1,12 +1,12 @@
 /**
  * Android home-screen widget UI (react-native-android-widget primitives).
- * Not a React Native View tree — only FlexWidget / TextWidget etc.
+ * Compact table-like rows — no disclaimer text on the widget.
  */
 import React from 'react';
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
 
 import type { PersonalizedDayFortune } from '@/src/lib/personalizedFortune';
-import { formatLunar, formatSolar } from '@/src/lib/calendar';
+import { formatLunarCompact, formatSolar } from '@/src/lib/calendar';
 
 export const WIDGET_NAME = 'VanSuDay';
 
@@ -20,9 +20,41 @@ function qualityColor(q: PersonalizedDayFortune['dayQuality']): `#${string}` {
   return '#FBBF24';
 }
 
+function Row({
+  label,
+  value,
+  valueColor = '#F8F5FF',
+}: {
+  label: string;
+  value: string;
+  valueColor?: `#${string}`;
+}) {
+  return (
+    <FlexWidget
+      style={{
+        flexDirection: 'row',
+        width: 'match_parent',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 3,
+        paddingBottom: 3,
+      }}
+    >
+      <TextWidget
+        text={label}
+        style={{ fontSize: 11, color: '#A89BB8', fontWeight: '600' }}
+      />
+      <TextWidget
+        text={value}
+        style={{ fontSize: 12, color: valueColor, fontWeight: '700' }}
+      />
+    </FlexWidget>
+  );
+}
+
 export function VanSuDayWidget({ fortune }: WidgetPayload) {
   const solar = formatSolar(fortune.solar);
-  const lunar = formatLunar(fortune.lunar);
+  const lunar = formatLunarCompact(fortune.lunar);
   const summary = fortune.widgetSummary || fortune.summary;
   const uri = `vansuai://day/${fortune.solar.year}-${String(fortune.solar.month).padStart(2, '0')}-${String(fortune.solar.day).padStart(2, '0')}`;
 
@@ -35,39 +67,37 @@ export function VanSuDayWidget({ fortune }: WidgetPayload) {
         width: 'match_parent',
         backgroundColor: '#0B0614',
         borderRadius: 16,
-        padding: 14,
+        padding: 12,
         flexDirection: 'column',
         justifyContent: 'space-between',
       }}
     >
       <TextWidget
         text="Van Su AI"
-        style={{ fontSize: 11, color: '#A78BFA', fontWeight: '600' }}
+        style={{ fontSize: 10, color: '#A78BFA', fontWeight: '600' }}
       />
-      <TextWidget
-        text={solar}
-        style={{ fontSize: 18, color: '#F5C542', fontWeight: '800' }}
-      />
-      <TextWidget
-        text={lunar}
-        style={{ fontSize: 12, color: '#A89BB8' }}
-      />
-      <TextWidget
-        text={fortune.dayQualityLabel}
+
+      <FlexWidget
         style={{
-          fontSize: 13,
-          color: qualityColor(fortune.dayQuality),
-          fontWeight: '700',
+          flexDirection: 'column',
+          width: 'match_parent',
+          marginTop: 4,
         }}
-      />
+      >
+        <Row label="Dương" value={solar} valueColor="#F5C542" />
+        <Row label="Âm" value={lunar} valueColor="#A78BFA" />
+        <Row label="Can chi" value={fortune.canChiDay} />
+        <Row
+          label="Chất ngày"
+          value={fortune.dayQualityLabel}
+          valueColor={qualityColor(fortune.dayQuality)}
+        />
+      </FlexWidget>
+
       <TextWidget
         text={summary}
-        style={{ fontSize: 12, color: '#F8F5FF' }}
+        style={{ fontSize: 11, color: '#F8F5FF', marginTop: 4 }}
         maxLines={2}
-      />
-      <TextWidget
-        text="Chỉ mang tính giải trí"
-        style={{ fontSize: 9, color: '#A89BB8' }}
       />
     </FlexWidget>
   );

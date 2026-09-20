@@ -5,7 +5,7 @@ import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { useApp } from '@/src/context/AppContext';
 import { FREE_LIMITS } from '@/src/lib/limits';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
-import { DISCLAIMER, colors } from '@/src/theme/colors';
+import { colors } from '@/src/theme/colors';
 
 export function TrialExpiredModal() {
   const { showTrialExpiredModal, dismissTrialExpiredModal } = useApp();
@@ -32,7 +32,6 @@ export function TrialExpiredModal() {
             {FREE_LIMITS.facePerWeek} tướng số/tuần, {FREE_LIMITS.chatMessages} chat/ngày + quảng
             cáo. Nâng Pro để tiếp tục không giới hạn?
           </Text>
-          <Text style={styles.disclaimer}>⚠ {DISCLAIMER}</Text>
           <View style={{ height: 14 }} />
           <PrimaryButton
             title="Nâng Pro"

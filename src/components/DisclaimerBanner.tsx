@@ -1,28 +1,33 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { useRouter } from 'expo-router';
 
-import { colors, DISCLAIMER } from '@/src/theme/colors';
+import { colors } from '@/src/theme/colors';
 
-export function DisclaimerBanner() {
+/** Tiny legal link — disclaimer copy lives only in Terms / Privacy. */
+export function TermsLink({ label = 'Điều khoản' }: { label?: string }) {
+  const router = useRouter();
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.text}>⚠ {DISCLAIMER}</Text>
-    </View>
+    <Pressable
+      onPress={() => router.push('/legal/terms')}
+      hitSlop={8}
+      accessibilityRole="link"
+      accessibilityLabel={label}
+    >
+      <Text style={styles.text}>{label}</Text>
+    </Pressable>
   );
 }
 
+/** @deprecated Prefer TermsLink — kept so old imports fail loudly if missed */
+export function DisclaimerBanner() {
+  return <TermsLink />;
+}
+
 const styles = StyleSheet.create({
-  wrap: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
   text: {
     color: colors.textMuted,
     fontSize: 12,
-    lineHeight: 18,
     textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });

@@ -15,7 +15,6 @@ import type { UserProfile } from './profile';
 import type { UserTraits } from './traits';
 import { extractBirthTime } from './traits';
 import { getAiApiKey, getAiApiUrl, isAiApiConfigured } from './flags';
-import { DISCLAIMER } from '@/src/theme/colors';
 
 export type AiSurface = 'horoscope' | 'chat' | 'horoscope_intake';
 
@@ -48,14 +47,6 @@ Nhiệm vụ trên tab Tử vi:
 Nếu có thể, trả JSON:
 { "text": "...", "traits": { "gender": "...", "relationshipStatus": "...", "career": "...", "concerns": ["..."], "locationCurrent": "...", "questionnaire": { "year_goal": "..." } }, "birthTime": "HH:mm", "readyForReading": true|false }
 Nếu không structured, chỉ trả text.`;
-
-function withDisclaimer(body: string): string {
-  const trimmed = body.trim();
-  if (trimmed.includes(DISCLAIMER) || trimmed.includes('giải trí')) {
-    return trimmed;
-  }
-  return `${trimmed}\n\n— ${DISCLAIMER} —`;
-}
 
 function traitsFromUnknown(raw: unknown): Partial<UserTraits> | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -146,7 +137,7 @@ export async function callAi(params: {
         const parsed = parseApiPayload(data);
         if (parsed.text.trim()) {
           return {
-            text: withDisclaimer(parsed.text),
+            text: parsed.text.trim(),
             source: 'api',
             showMockBadge: false,
             extractedTraits: parsed.traits,
@@ -174,7 +165,7 @@ export async function callAi(params: {
         const parsed = parseApiPayload(data);
         if (parsed.text.trim()) {
           return {
-            text: withDisclaimer(parsed.text),
+            text: parsed.text.trim(),
             source: 'mock',
             showMockBadge: typeof __DEV__ !== 'undefined' && __DEV__,
             extractedTraits: parsed.traits,

@@ -214,25 +214,30 @@ export function getDayQuality(dd: number, mm: number, yy: number): DayFortune['d
   return 'binh';
 }
 
+/**
+ * Giờ hoàng đạo theo bảng cổ điển (6 giờ tốt / ngày, theo Chi ngày).
+ * Ví dụ ngày Dậu: Tý, Dần, Mão, Ngọ, Mùi, Dậu.
+ * Vẫn mang tính tham khảo lịch dân gian; không phải tính toán thiên văn.
+ */
 export function getHoangDaoHours(dd: number, mm: number, yy: number) {
   const jd = jdFromDate(dd, mm, yy);
   const chiDay = (jd + 1) % 12;
-  // Classic mapping: 6 good hours per day based on day Chi
+  // Pairs: Tý↔Ngọ, Sửu↔Mùi, Dần↔Thân, Mão↔Dậu, Thìn↔Tuất, Tỵ↔Hợi
   const goodSets: Record<number, number[]> = {
-    0: [0, 1, 4, 5, 8, 9], // Tý
-    1: [2, 3, 6, 7, 10, 11],
-    2: [0, 1, 4, 5, 8, 9],
-    3: [2, 3, 6, 7, 10, 11],
-    4: [0, 1, 4, 5, 8, 9],
-    5: [2, 3, 6, 7, 10, 11],
-    6: [0, 1, 4, 5, 8, 9],
-    7: [2, 3, 6, 7, 10, 11],
-    8: [0, 1, 4, 5, 8, 9],
-    9: [2, 3, 6, 7, 10, 11],
-    10: [0, 1, 4, 5, 8, 9],
-    11: [2, 3, 6, 7, 10, 11],
+    0: [0, 1, 3, 6, 8, 9], // Tý: Tý Sửu Mão Ngọ Thân Dậu
+    6: [0, 1, 3, 6, 8, 9], // Ngọ
+    1: [2, 3, 5, 8, 10, 11], // Sửu: Dần Mão Tỵ Thân Tuất Hợi
+    7: [2, 3, 5, 8, 10, 11], // Mùi
+    2: [0, 1, 4, 5, 7, 10], // Dần: Tý Sửu Thìn Tỵ Mùi Tuất
+    8: [0, 1, 4, 5, 7, 10], // Thân
+    3: [0, 2, 3, 6, 7, 9], // Mão: Tý Dần Mão Ngọ Mùi Dậu
+    9: [0, 2, 3, 6, 7, 9], // Dậu
+    4: [2, 3, 5, 8, 10, 11], // Thìn: Dần Mão Tỵ Thân Tuất Hợi
+    10: [2, 3, 5, 8, 10, 11], // Tuất
+    5: [2, 4, 5, 8, 10, 11], // Tỵ: Dần Thìn Tỵ Thân Tuất Hợi
+    11: [2, 4, 5, 8, 10, 11], // Hợi
   };
-  const goods = new Set(goodSets[chiDay] ?? [0, 1, 4, 5, 8, 9]);
+  const goods = new Set(goodSets[chiDay] ?? [0, 1, 3, 6, 8, 9]);
   return HOURS.map((h, i) => ({
     name: h.name,
     range: h.range,
@@ -274,9 +279,20 @@ export function formatSolar(d: SolarDate): string {
   return `${pad(d.day)}/${pad(d.month)}/${d.year}`;
 }
 
+/**
+ * Nhãn âm lịch rõ ràng cho NGÀY đang xem (năm can chi của năm âm lịch của ngày,
+ * KHÔNG phải tuổi/con giáp năm sinh của user).
+ * Ví dụ: "Âm lịch: ngày 10 tháng 8 năm Bính Ngọ"
+ */
 export function formatLunar(d: LunarDate): string {
-  const leap = d.leap ? ' (nhuận)' : '';
-  return `${pad(d.day)}/${pad(d.month)}${leap} âm lịch · ${getCanChiYear(d.year)}`;
+  const leap = d.leap ? ' nhuận' : '';
+  return `Âm lịch: ngày ${d.day} tháng ${d.month}${leap} năm ${getCanChiYear(d.year)}`;
+}
+
+/** Dạng ngắn cho widget / bảng: "10/8 Bính Ngọ" */
+export function formatLunarCompact(d: LunarDate): string {
+  const leap = d.leap ? 'N' : '';
+  return `${d.day}/${d.month}${leap} ${getCanChiYear(d.year)}`;
 }
 
 function pad(n: number): string {
