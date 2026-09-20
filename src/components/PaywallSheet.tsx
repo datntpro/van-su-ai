@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -5,6 +6,13 @@ import { PrimaryButton } from '@/src/components/PrimaryButton';
 import { DISCLAIMER, colors } from '@/src/theme/colors';
 import { FREE_LIMITS } from '@/src/lib/limits';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
+import {
+  getOfferingsPackages,
+  isRevenueCatConfigured,
+  purchasePro,
+  type RcPackageInfo,
+} from '@/src/services/revenuecat';
+import { useApp } from '@/src/context/AppContext';
 
 export type PaywallFeature = 'horoscope' | 'face' | 'chat';
 
@@ -39,7 +47,39 @@ export function PaywallSheet({
 }) {
   const router = useRouter();
   const layout = useWindowLayout();
+  const { applyPaidFromRevenueCat } = useApp();
   const c = COPY[feature];
+  const [packages, setPackages] = useState<RcPackageInfo[]>([]);
+  const [pkgHint, setPkgHint] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!visible || !isRevenueCatConfigured()) return;
+    let cancelled = false;
+    (async () => {
+      const res = await getOfferingsPackages();
+      if (cancelled) return;
+      setPackages(res.packages);
+      setPkgHint(res.message);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
+
+  const onBuy = async (pkg?: RcPackageInfo) => {
+    setBusy(true);
+    try {
+      const res = await purchasePro(pkg);
+      if (res.paid) await applyPaidFromRevenueCat(true);
+      if (res.paid) onClose();
+      else if (!res.success) {
+        // Fall through to Pro tab for restore / demo
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -61,16 +101,36 @@ export function PaywallSheet({
             {c.limitLine}. Còn lại: {remaining}. Dùng Pro (hoặc Trial Pro) để không giới hạn tử
             vi, tướng số và chat — đồng thời ẩn quảng cáo.
           </Text>
+
+          {packages.length > 0 ? (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              {packages.map((p) => (
+                <PrimaryButton
+                  key={p.identifier}
+                  title={`${p.title || p.identifier} · ${p.priceString}`}
+                  variant="gold"
+                  disabled={busy}
+                  onPress={() => onBuy(p)}
+                />
+              ))}
+            </View>
+          ) : (
+            <>
+              {pkgHint ? <Text style={styles.hint}>{pkgHint}</Text> : null}
+              <View style={{ height: 14 }} />
+              <PrimaryButton
+                title="Dùng Pro"
+                variant="gold"
+                disabled={busy}
+                onPress={() => {
+                  onClose();
+                  router.push('/pro');
+                }}
+              />
+            </>
+          )}
+
           <Text style={styles.disclaimer}>⚠ {DISCLAIMER}</Text>
-          <View style={{ height: 14 }} />
-          <PrimaryButton
-            title="Dùng Pro"
-            variant="gold"
-            onPress={() => {
-              onClose();
-              router.push('/pro');
-            }}
-          />
           <View style={{ height: 8 }} />
           <PrimaryButton title="Để sau" variant="ghost" onPress={onClose} />
         </View>
@@ -97,5 +157,6 @@ const styles = StyleSheet.create({
   kicker: { color: colors.gold, fontWeight: '700', letterSpacing: 1, fontSize: 12 },
   title: { color: colors.text, fontSize: 22, fontWeight: '800', marginTop: 6 },
   body: { color: colors.textMuted, marginTop: 10, lineHeight: 22, fontSize: 15 },
+  hint: { color: colors.textMuted, marginTop: 10, fontSize: 12, lineHeight: 18 },
   disclaimer: { color: colors.textMuted, marginTop: 12, fontSize: 12, lineHeight: 18 },
 });

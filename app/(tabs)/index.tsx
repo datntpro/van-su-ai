@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -36,6 +36,21 @@ export default function HomNayScreen() {
     month: now.getMonth() + 1,
     day: now.getDate(),
   });
+
+  const params = useLocalSearchParams<{ day?: string }>();
+
+  useEffect(() => {
+    const raw = typeof params.day === 'string' ? params.day : Array.isArray(params.day) ? params.day[0] : '';
+    const m = raw && raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (!y || !mo || !d) return;
+    setSelected({ year: y, month: mo, day: d });
+    setViewYear(y);
+    setViewMonth(mo);
+  }, [params.day]);
 
   useEffect(() => {
     const applyDayUrl = (url: string | null) => {
@@ -158,6 +173,12 @@ export default function HomNayScreen() {
       </View>
 
       <View style={{ height: 12 }} />
+      <PrimaryButton
+        title="📅 Chọn ngày tốt theo việc"
+        variant="gold"
+        onPress={() => router.push('/chon-ngay-tot')}
+      />
+      <View style={{ height: 8 }} />
       <PrimaryButton title="💬 Hỏi Van Su AI" onPress={() => router.push('/chat')} />
 
       {!effectivePro ? (

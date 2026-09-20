@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 
@@ -16,6 +17,8 @@ import {
   purchasePro,
   restorePurchases,
   isRevenueCatConfigured,
+  getOfferingsPackages,
+  type RcPackageInfo,
 } from '@/src/services/revenuecat';
 import { useWindowLayout } from '@/src/hooks/useWindowLayout';
 import { colors, DISCLAIMER } from '@/src/theme/colors';
@@ -42,6 +45,7 @@ const ROWS: { feature: string; free: string; trial: string; pro: string }[] = [
   },
   { feature: 'Quảng cáo', free: 'Có', trial: 'Không', pro: 'Không' },
   { feature: 'Countdown trial', free: '—', trial: '✓', pro: '—' },
+  { feature: 'Chọn ngày tốt theo việc', free: '✓', trial: '✓', pro: '✓' },
 ];
 
 export default function ProScreen() {
@@ -57,6 +61,22 @@ export default function ProScreen() {
   const { signOut, user, isDemoAuth, supabaseConfigured } = useAuth();
   const showDemo = canShowDemoProToggle();
   const layout = useWindowLayout();
+  const [packages, setPackages] = useState<RcPackageInfo[]>([]);
+  const [pkgHint, setPkgHint] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!isRevenueCatConfigured()) return;
+    let cancelled = false;
+    (async () => {
+      const res = await getOfferingsPackages();
+      if (cancelled) return;
+      setPackages(res.packages);
+      setPkgHint(res.message);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const statusLine = (() => {
     if (isProPaid) return 'Bạn đang dùng Pro (đã mua)';
@@ -67,8 +87,8 @@ export default function ProScreen() {
     return 'Gói Free · nâng cấp để mở khoá';
   })();
 
-  const onPurchase = async () => {
-    const res = await purchasePro();
+  const onPurchase = async (pkg?: RcPackageInfo) => {
+    const res = await purchasePro(pkg);
     if (res.paid) await applyPaidFromRevenueCat(true);
     Alert.alert('In-App Purchase', res.message);
   };
@@ -140,14 +160,35 @@ export default function ProScreen() {
       ) : null}
 
       <View style={{ height: 12 }} />
-      <PrimaryButton title="Mua Pro (IAP)" onPress={onPurchase} variant="gold" />
+      {packages.length > 0 ? (
+        packages.map((p) => (
+          <View key={p.identifier} style={{ marginBottom: 8 }}>
+            <PrimaryButton
+              title={`Mua ${p.title || p.identifier} · ${p.priceString}`}
+              onPress={() => onPurchase(p)}
+              variant="gold"
+            />
+          </View>
+        ))
+      ) : (
+        <PrimaryButton title="Mua Pro (IAP)" onPress={() => onPurchase()} variant="gold" />
+      )}
       <View style={{ height: 8 }} />
       <PrimaryButton title="Khôi phục mua hàng" onPress={onRestore} variant="ghost" />
 
       <Text style={styles.envHint}>
         RevenueCat:{' '}
-        {isRevenueCatConfigured() ? 'đã thấy API key env' : 'chưa cấu hình (TODO)'}
+        {isRevenueCatConfigured()
+          ? packages.length
+            ? `${packages.length} gói sẵn sàng`
+            : 'đã thấy API key — chờ native/offering'
+          : 'chưa cấu hình key'}
+        {pkgHint ? ` · ${pkgHint}` : ''}
         {effectivePro && !isProPaid ? ' · đang Trial' : ''}
+      </Text>
+      <Text style={styles.switchHint}>
+        Paid cloud: webhook RC → apply_paid_pro (service_role). Client chỉ soft-local / __DEV__ demo.
+        Chi tiết: docs/IAP-REVENUECAT.md
       </Text>
 
       <Card style={{ marginTop: 14 }}>
