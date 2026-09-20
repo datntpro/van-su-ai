@@ -70,6 +70,14 @@ function RootNav() {
         <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="chon-ngay-tot"
+          options={{
+            title: 'Chọn ngày tốt',
+            headerStyle: { backgroundColor: colors.surface },
+            headerTintColor: colors.gold,
+          }}
+        />
+        <Stack.Screen
           name="chat"
           options={{
             presentation: 'modal',

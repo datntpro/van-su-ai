@@ -59,14 +59,37 @@ Chi tiết BA: `docs/BA-FEATURE-GAP.md` · Checklist pilot: `docs/PILOT-CHECKLIS
 
 ## Tabs & AI
 
-- **Hôm nay** — lịch + Trial banner / soft nudge D5–6 + ads nếu Free
-- **Tử vi** — hội thoại nhiều lượt: AI hỏi giờ sinh / giới tính / hôn nhân / việc / quan tâm / mục tiêu; lưu `user_traits`; rồi luận giải cá nhân. Bỏ qua = gen ngay. Persist `horoscope_chats`.
+- **Hôm nay** — lịch tháng + Trial banner / soft nudge D5–6 + ads nếu Free + CTA **Chọn ngày tốt**
+- **Chọn ngày tốt** — `app/chon-ngay-tot.tsx`: 12 việc VN (cưới hỏi, khai trương, động thổ…), range 30/60/90 ngày, heuristic + hợp tuổi khi có `birthDate`
+- **Tử vi** — hội thoại nhiều lượt; AI hỏi giờ sinh / giới tính / hôn nhân / việc / quan tâm / mục tiêu; lưu `user_traits`. Persist `horoscope_chats`.
 - **Chat** — pluggable AI: nếu `EXPO_PUBLIC_AI_API_URL` + `EXPO_PUBLIC_AI_API_KEY` → HTTP; else mock + badge **MOCK AI** trong `__DEV__`
 - **Tướng số** — ảnh → mock analysis (P1: vision API)
-- **Pro** — matrix Free/Trial/Pro, status trial, IAP stub, legal links
+- **Pro** — matrix Free/Trial/Pro, packages RevenueCat khi có, purchase/restore, legal links
 - Legal: `app/legal/privacy.tsx`, `app/legal/terms.tsx`
 
-Worker stub (optional): `worker/` — proxy Workers AI / OpenAI, contract JSON documented.
+### AI Worker (Cloudflare)
+
+Xem [`worker/README.md`](worker/README.md):
+
+```bash
+cd worker
+npx wrangler secret put AI_API_KEY          # shared bearer = EXPO_PUBLIC_AI_API_KEY
+npx wrangler secret put OPENAI_API_KEY      # optional; hoặc dùng Workers AI binding
+npx wrangler deploy
+```
+
+App `.env` / EAS:
+
+```bash
+EXPO_PUBLIC_AI_API_URL=https://van-su-ai-proxy.<you>.workers.dev
+EXPO_PUBLIC_AI_API_KEY=<same-shared-bearer>
+```
+
+**Never** put Supabase `service_role` in Expo or this worker for the AI path.
+
+### IAP / RevenueCat
+
+Xem [`docs/IAP-REVENUECAT.md`](docs/IAP-REVENUECAT.md). Package `react-native-purchases` đã gắn — cần **EAS / prebuild** (không Expo Go). Entitlement `pro`; client soft-local sau mua; cloud `is_pro` qua webhook → `apply_paid_pro` (service_role).
 
 ## Supabase — checklist nhanh
 
@@ -132,6 +155,19 @@ Chi tiết: [`docs/WIDGETS.md`](docs/WIDGETS.md).
 npx expo prebuild -p android --clean
 cd android && ./gradlew assembleDebug
 ```
+
+## Monetize readiness (P0)
+
+| Gate | Status in repo |
+|------|----------------|
+| Real AI Worker proxy | `worker/` deployable; Expo URL+key |
+| Chọn ngày tốt theo việc | Screen + heuristics + entry Hôm nay |
+| IAP purchase/restore | `react-native-purchases` + graceful Expo Go stub |
+| Paywall packages | Pro tab + PaywallSheet khi offering có data |
+| Docs | worker README, IAP-REVENUECAT, PILOT monetize gates |
+| RLS | Client không UPDATE `is_pro` |
+
+Dat còn cần cung cấp: Cloudflare token, OpenAI và/hoặc Workers AI, RevenueCat + Play/App Store keys, webhook `apply_paid_pro`.
 
 ## Tech
 

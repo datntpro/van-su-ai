@@ -79,7 +79,9 @@ Không cấp trial trước registration. `handle_new_user` chỉ insert profile
 
 ## 5. Out of scope P0 (đừng block pilot)
 
-Full lịch Việt sâu, AdMob production live IDs, widget, phong thủy, RC purchase thật trên device (stub OK nếu chưa gắn SDK).
+Full lịch Việt sâu (tiết khí/50+ việc), AdMob production live IDs, phong thủy sâu, vision tướng số API.
+Widget Android đã có P0 riêng — không block monetize.
+RC purchase thật trên **device store build** cần keys Dat (code path đã sẵn).
 
 ## 6. Git / build
 
@@ -89,3 +91,43 @@ npm test
 npx expo start
 # EAS: set secrets + EXPO_PUBLIC_STORE_BUILD=1
 ```
+
+## 7. Monetize gates (P0)
+
+### 7.1 AI Worker
+
+- [ ] `cd worker && npx wrangler login && npx wrangler deploy`
+- [ ] Secrets: `AI_API_KEY` (shared bearer), optional `OPENAI_API_KEY`
+- [ ] Workers AI binding OK **hoặc** OpenAI upstream OK (GET `/` health)
+- [ ] EAS / `.env`: `EXPO_PUBLIC_AI_API_URL` + `EXPO_PUBLIC_AI_API_KEY` (cùng bearer)
+- [ ] Tab Tử vi / Chat: reply không còn MOCK khi API 200; disclaimer vẫn có
+- [ ] **Không** đưa `service_role` vào Worker/Expo
+
+### 7.2 Chọn ngày tốt
+
+- [ ] Hôm nay → CTA **Chọn ngày tốt theo việc**
+- [ ] Chọn ≥1 việc (cưới / khai trương / động thổ…) + range 30/60/90
+- [ ] Có `birthDate`: kết quả nhắc hợp/xung tuổi; không có: vẫn list theo ngày tốt
+- [ ] Disclaimer giải trí hiển thị; mở ngày trên lịch Hôm nay (`?day=YYYY-MM-DD`)
+
+### 7.3 IAP / RevenueCat
+
+- [ ] Dashboard: entitlement **`pro`**, offering **`default`**, products tháng/năm
+- [ ] `EXPO_PUBLIC_REVENUECAT_API_KEY` trên EAS (appl_/goog_)
+- [ ] Build **không** Expo Go: `eas build` / `expo prebuild` + `run:android|ios`
+- [ ] Pro tab hiện packages (nếu offering có) · Mua / Restore
+- [ ] Sau mua: soft local Pro; **webhook** RC → `apply_paid_pro` (service_role) trước khi tin multi-device
+- [ ] Store build: không demo toggle `is_pro`
+- [ ] Docs: `docs/IAP-REVENUECAT.md`
+
+### 7.4 Dat phải cung cấp (blockers ngoài code)
+
+| Item | Dùng cho |
+|------|----------|
+| Cloudflare account + API token / `wrangler login` | Deploy AI Worker |
+| OpenAI key **và/hoặc** Workers AI enabled | Upstream AI |
+| Shared bearer (`AI_API_KEY`) | Expo ↔ Worker auth |
+| RevenueCat project + public SDK keys | IAP |
+| Play Console / App Store Connect products + license testers | Store IAP |
+| Supabase service_role (server only) + Edge Function webhook | Sync `is_pro` cloud |
+

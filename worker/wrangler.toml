@@ -2,5 +2,18 @@ name = "van-su-ai-proxy"
 main = "index.js"
 compatibility_date = "2026-09-01"
 
-# secrets: wrangler secret put AI_API_KEY
-# secrets: wrangler secret put OPENAI_API_KEY
+# Workers AI binding (optional — used when OPENAI_API_KEY is unset or AI_PROVIDER=workers)
+[ai]
+binding = "AI"
+
+# Secrets (never commit):
+#   npx wrangler secret put AI_API_KEY          # shared bearer ↔ EXPO_PUBLIC_AI_API_KEY
+#   npx wrangler secret put OPENAI_API_KEY      # optional OpenAI / compatible key
+# Vars (optional, non-secret):
+#   OPENAI_MODEL, OPENAI_BASE_URL, AI_PROVIDER, WORKERS_AI_MODEL
+[vars]
+OPENAI_MODEL = "gpt-4o-mini"
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+# AI_PROVIDER = "auto" | "openai" | "workers"
+AI_PROVIDER = "auto"
+WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
